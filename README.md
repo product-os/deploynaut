@@ -1,6 +1,6 @@
 # Deployable
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) that Approve deployments with comment reactions
+> A GitHub App built with [Probot](https://github.com/probot/probot) to Approve deployments via signed comments from maintainers
 
 ## Setup
 
@@ -16,10 +16,10 @@ npm start
 
 ```sh
 # 1. Build container
-docker build -t Deployable .
+docker build -t deployable .
 
 # 2. Start container
-docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> Deployable
+docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> deployable
 ```
 
 ## Contributing
@@ -30,4 +30,5 @@ For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
 ## License
 
-[ISC](LICENSE) © 2024 Balena
+This project is licensed under Apache 2.0 - see the [LICENSE](LICENSE) file for
+details.

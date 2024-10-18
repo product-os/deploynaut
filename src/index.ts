@@ -7,6 +7,16 @@ export default (app: Probot) => {
     });
     await context.octokit.issues.createComment(issueComment);
   });
+
+  app.on("deployment_protection_rule.requested", async (context) => {
+    console.log("Deployment protection rule requested");
+    console.log(JSON.stringify(context.payload, null, 2));
+  });
+
+  app.on("issue_comment.created", async (context) => {
+    console.log("Issue comment created");
+    console.log(JSON.stringify(context.payload, null, 2));
+  });
   // For more information on building apps:
   // https://probot.github.io/docs/
 
