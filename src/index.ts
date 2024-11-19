@@ -1,4 +1,7 @@
-import { Probot } from "probot";
+import type { Probot } from "probot";
+// import { DeploymentApprover } from "./deployment";
+
+// const approver = new DeploymentApprover();
 
 export default (app: Probot) => {
   app.on("issues.opened", async (context) => {
@@ -16,6 +19,22 @@ export default (app: Probot) => {
   app.on("issue_comment.created", async (context) => {
     console.log("Issue comment created");
     console.log(JSON.stringify(context.payload, null, 2));
+
+    // post a reaction to the comment with :eyes:
+    const reaction = context.repo({
+      comment_id: context.payload.comment.id,
+      content: "eyes" as
+        | "eyes"
+        | "+1"
+        | "-1"
+        | "laugh"
+        | "confused"
+        | "heart"
+        | "hooray"
+        | "rocket",
+    });
+
+    await context.octokit.reactions.createForIssueComment(reaction);
   });
   // For more information on building apps:
   // https://probot.github.io/docs/

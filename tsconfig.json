@@ -1,25 +1,34 @@
 {
-  "compilerOptions": {
-    "incremental": true,
-    "target": "es2022",
-    "module": "Node16",
-    "declaration": true,
-    "sourceMap": true,
-    "outDir": "./lib",
-
-    /* Strict Type-Checking Options */
-    "strict": true,
-
-    /* Additional Checks */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-
-    "moduleResolution": "Node16",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": ["src/"],
-  "compileOnSave": false
+	"compilerOptions": {
+		"module": "NodeNext",
+		"target": "es2022",
+		"declaration": true,
+		"outDir": "lib/",
+		"rootDir": "src/",
+		"strict": true,
+		"strictPropertyInitialization": false,
+		"strictFunctionTypes": false,
+		"useUnknownInCatchVariables": false,
+		"noImplicitThis": false,
+		"noUnusedParameters": true,
+		"noUnusedLocals": true,
+		"preserveConstEnums": true,
+		"sourceMap": true,
+		"skipLibCheck": true,
+		"resolveJsonModule": true,
+		"esModuleInterop": true
+	},
+	"include": [
+		"src/**/*.ts"
+	],
+	"exclude": [
+		"node_modules",
+		"**/*.d.ts"
+	],
+	"ts-node": {
+		"esm": true,
+		"experimentalResolver": true,
+		"experimentalTsImportSpecifiers": true,
+		"transpileOnly": true
+	}
 }
