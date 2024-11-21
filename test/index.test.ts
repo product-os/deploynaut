@@ -1,83 +1,197 @@
-// You can import your modules
-// import index from '../src/index'
+import nock from 'nock';
+import myProbotApp from '../src/index.js';
+import { Probot, ProbotOctokit } from 'probot';
+import fs from 'fs';
+import path from 'path';
+import { describe, beforeEach, afterEach, test, expect } from 'vitest';
 
-import nock from "nock";
-// Requiring our app implementation
-import myProbotApp from "../src/index.js";
-import { Probot, ProbotOctokit } from "probot";
-// Requiring our fixtures
-//import payload from "./fixtures/issues.opened.json" with { "type": "json"};
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import { describe, beforeEach, afterEach, test, expect } from "vitest";
+// Load test fixtures
+const deploymentProtectionRule = JSON.parse(
+	fs.readFileSync(
+		path.join(__dirname, 'fixtures/deployment_protection_rule.requested.json'),
+		'utf-8',
+	),
+);
 
-const issueCreatedBody = { body: "Thanks for opening this issue!" };
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const issueComment = JSON.parse(
+	fs.readFileSync(
+		path.join(__dirname, 'fixtures/issue_comment.created.json'),
+		'utf-8',
+	),
+);
 
 const privateKey = fs.readFileSync(
-  path.join(__dirname, "fixtures/mock-cert.pem"),
-  "utf-8",
+	path.join(__dirname, 'fixtures/mock-cert.pem'),
+	'utf-8',
 );
 
-const payload = JSON.parse(
-  fs.readFileSync(path.join(__dirname, "fixtures/issues.opened.json"), "utf-8"),
-);
+describe('GitHub Deployment App', () => {
+	let probot: any;
 
-describe("My Probot app", () => {
-  let probot: any;
+	beforeEach(() => {
+		nock.disableNetConnect();
+		probot = new Probot({
+			appId: 123,
+			privateKey,
+			// Disable request throttling and retries for testing
+			Octokit: ProbotOctokit.defaults({
+				retry: { enabled: false },
+				throttle: { enabled: false },
+			}),
+		});
+		probot.load(myProbotApp);
+	});
 
-  beforeEach(() => {
-    nock.disableNetConnect();
-    probot = new Probot({
-      appId: 123,
-      privateKey,
-      // disable request throttling and retries for testing
-      Octokit: ProbotOctokit.defaults({
-        retry: { enabled: false },
-        throttle: { enabled: false },
-      }),
-    });
-    // Load our app into probot
-    probot.load(myProbotApp);
-  });
+	afterEach(() => {
+		nock.cleanAll();
+		nock.enableNetConnect();
+	});
 
-  test("creates a comment when an issue is opened", async () => {
-    const mock = nock("https://api.github.com")
-      // Test that we correctly return a test token
-      .post("/app/installations/2/access_tokens")
-      .reply(200, {
-        token: "test",
-        permissions: {
-          issues: "write",
-        },
-      })
+	describe('deployment_protection_rule.requested', () => {
+		test('approves deployment for allowed user', async () => {
+			// Mock installation token and GraphQL API call for whoAmI
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/57364329/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.post('/graphql')
+				.reply(200, {
+					data: {
+						viewer: {
+							login: 'test-bot',
+							databaseId: 123,
+						},
+					},
+				})
+				// Mock deployment approval callback
+				.post(
+					'/repos/balena-io-experimental/deployable/actions/runs/11921637963/deployment_protection_rule',
+				)
+				.reply(200);
 
-      // Test that a comment is posted
-      .post("/repos/hiimbex/testing-things/issues/1/comments", (body: any) => {
-        expect(body).toMatchObject(issueCreatedBody);
-        return true;
-      })
-      .reply(200);
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: deploymentProtectionRule,
+			});
 
-    // Receive a webhook event
-    await probot.receive({ name: "issues", payload });
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
 
-    expect(mock.pendingMocks()).toStrictEqual([]);
-  });
+		test('ignores deployment from self', async () => {
+			const payload = {
+				...deploymentProtectionRule,
+				deployment: {
+					...deploymentProtectionRule.deployment,
+					creator: {
+						login: 'test-bot',
+					},
+				},
+			};
 
-  afterEach(() => {
-    nock.cleanAll();
-    nock.enableNetConnect();
-  });
+			// Mock installation token and GraphQL API call for whoAmI
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/57364329/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.post('/graphql')
+				.reply(200, {
+					data: {
+						viewer: {
+							login: 'test-bot',
+							databaseId: 123,
+						},
+					},
+				});
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+	});
+
+	describe('issue_comment.created', () => {
+		test('processes valid deploy comment', async () => {
+			// Mock all required API calls
+			const mock = nock('https://api.github.com')
+				// Mock installation token
+				.post('/app/installations/57364329/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				// Add eyes reaction
+				.post(
+					'/repos/balena-io-experimental/deployable/issues/comments/2486741061/reactions',
+				)
+				.reply(200)
+				// Get app identity
+				.post('/graphql')
+				.reply(200, {
+					data: {
+						viewer: {
+							login: 'test-bot',
+							databaseId: 123,
+						},
+					},
+				})
+				// Check user permissions
+				.get(
+					'/repos/balena-io-experimental/deployable/collaborators/klutchell/permission',
+				)
+				.reply(200, { permission: 'admin' })
+				// Get PR details
+				.get('/repos/balena-io-experimental/deployable/pulls/2')
+				.reply(200, {
+					head: { sha: 'abec9b0' },
+				})
+				// List workflow runs
+				.get('/repos/balena-io-experimental/deployable/actions/runs')
+				.query(true)
+				.reply(200, { workflow_runs: [] });
+
+			await probot.receive({
+				name: 'issue_comment',
+				payload: issueComment,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores non-deploy comments', async () => {
+			const payload = {
+				...issueComment,
+				comment: {
+					...issueComment.comment,
+					body: 'Just a regular comment',
+				},
+			};
+
+			await probot.receive({
+				name: 'issue_comment',
+				payload,
+			});
+
+			// No API calls should be made
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores bot comments', async () => {
+			const payload = {
+				...issueComment,
+				comment: {
+					...issueComment.comment,
+					user: {
+						...issueComment.comment.user,
+						type: 'Bot',
+					},
+				},
+			};
+
+			await probot.receive({
+				name: 'issue_comment',
+				payload,
+			});
+
+			// No API calls should be made
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+	});
 });
-
-// For more information about testing with Jest see:
-// https://facebook.github.io/jest/
-
-// For more information about using TypeScript in your tests, Jest recommends:
-// https://github.com/kulshekhar/ts-jest
-
-// For more information about testing with Nock see:
-// https://github.com/nock/nock

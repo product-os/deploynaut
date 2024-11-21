@@ -57,6 +57,9 @@ default_permissions:
   # https://developer.github.com/v3/apps/permissions/#permission-on-administration
   # administration: read
 
+  # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-actions
+  actions: read
+
   # Checks on code.
   # https://developer.github.com/v3/apps/permissions/#permission-on-checks
   # checks: read
@@ -67,7 +70,7 @@ default_permissions:
 
   # Deployments and deployment statuses.
   # https://developer.github.com/v3/apps/permissions/#permission-on-deployments
-  deployments: read
+  deployments: write
 
   # Issues and related comments, assignees, labels, and milestones.
   # https://developer.github.com/v3/apps/permissions/#permission-on-issues
@@ -131,7 +134,7 @@ name: Deployable
 url: https://github.com/balena-io-experimental/deployable
 
 # A description of the GitHub App.
-description: Approve deployments via signed comments from maintainers
+description: Approve deployments via comments from maintainers
 
 # Set to true when your GitHub App is available to the public or false when it is only accessible to the owner of the app.
 # Default: true

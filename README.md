@@ -1,6 +1,6 @@
 # Deployable
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) to Approve deployments via signed comments from maintainers
+> A GitHub App built with [Probot](https://github.com/probot/probot) to Approve deployments via comments from maintainers
 
 ## Setup
 
