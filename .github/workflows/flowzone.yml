@@ -47,3 +47,5 @@ jobs:
         {
           "environment": ["test"]
         }
+      docker_images:
+        ghcr.io/balena-io-experimental/deployable
