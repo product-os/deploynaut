@@ -5,25 +5,58 @@ import fs from 'fs';
 import path from 'path';
 import { describe, beforeEach, afterEach, test, expect } from 'vitest';
 
-// Load test fixtures
-const deploymentProtectionRule = JSON.parse(
-	fs.readFileSync(
-		path.join(__dirname, 'fixtures/deployment_protection_rule.requested.json'),
-		'utf-8',
-	),
-);
-
-const issueComment = JSON.parse(
-	fs.readFileSync(
-		path.join(__dirname, 'fixtures/issue_comment.created.json'),
-		'utf-8',
-	),
-);
-
 const privateKey = fs.readFileSync(
 	path.join(__dirname, 'fixtures/mock-cert.pem'),
 	'utf-8',
 );
+
+// Test fixtures
+const testFixtures = {
+	deployment_protection_rule: {
+		action: 'requested',
+		environment: 'test',
+		event: 'pull_request',
+		deployment_callback_url:
+			'https://api.github.com/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+		deployment: {
+			creator: {
+				login: 'balena-renovate[bot]',
+			},
+		},
+		installation: { id: 12345678 },
+		repository: {
+			owner: {
+				login: 'test-org',
+			},
+			name: 'test-repo',
+		},
+	},
+	issue_comment: {
+		action: 'created',
+		issue: {
+			// eslint-disable-next-line id-denylist
+			number: 123,
+			pull_request: {},
+		},
+		comment: {
+			id: 456,
+			user: {
+				login: 'test-user',
+				type: 'User',
+			},
+			body: '/deploy please',
+			created_at: '2024-01-01T00:00:00Z',
+			updated_at: '2024-01-01T00:00:00Z',
+		},
+		installation: { id: 12345678 },
+		repository: {
+			owner: {
+				login: 'test-org',
+			},
+			name: 'test-repo',
+		},
+	},
+};
 
 describe('GitHub Deployment App', () => {
 	let probot: any;
@@ -49,9 +82,8 @@ describe('GitHub Deployment App', () => {
 
 	describe('deployment_protection_rule.requested', () => {
 		test('approves deployment for allowed user', async () => {
-			// Mock installation token and GraphQL API call for whoAmI
 			const mock = nock('https://api.github.com')
-				.post('/app/installations/57364329/access_tokens')
+				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
 				.post('/graphql')
 				.reply(200, {
@@ -62,34 +94,109 @@ describe('GitHub Deployment App', () => {
 						},
 					},
 				})
-				// Mock deployment approval callback
 				.post(
-					'/repos/balena-io-experimental/deployable/actions/runs/11921637963/deployment_protection_rule',
+					'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
 				)
 				.reply(200);
 
 			await probot.receive({
 				name: 'deployment_protection_rule',
-				payload: deploymentProtectionRule,
+				payload: testFixtures.deployment_protection_rule,
 			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores events with missing properties', async () => {
+			const payload = {
+				...testFixtures.deployment_protection_rule,
+				event: null,
+			};
+
+			const result = await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: payload,
+			});
+
+			expect(result).toBeUndefined();
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores non-pull-request events', async () => {
+			const payload = {
+				...testFixtures.deployment_protection_rule,
+				event: 'push',
+			};
+
+			const result = await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: payload,
+			});
+
+			expect(result).toBeUndefined();
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('throws error on failure to get app user', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.post('/graphql')
+				.reply(404, { message: 'Not Found' });
+
+			await expect(
+				probot.receive({
+					name: 'deployment_protection_rule',
+					payload: testFixtures.deployment_protection_rule,
+				}),
+			).rejects.toThrow('Failed to get app user');
 
 			expect(mock.pendingMocks()).toStrictEqual([]);
 		});
 
 		test('ignores deployment from self', async () => {
 			const payload = {
-				...deploymentProtectionRule,
+				...testFixtures.deployment_protection_rule,
 				deployment: {
-					...deploymentProtectionRule.deployment,
 					creator: {
 						login: 'test-bot',
 					},
 				},
 			};
 
-			// Mock installation token and GraphQL API call for whoAmI
 			const mock = nock('https://api.github.com')
-				.post('/app/installations/57364329/access_tokens')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.post('/graphql')
+				.reply(200, {
+					data: {
+						viewer: {
+							login: 'test-bot',
+							databaseId: 123,
+						},
+					},
+				});
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores deployment from unauthorized user', async () => {
+			const payload = {
+				...testFixtures.deployment_protection_rule,
+				deployment: {
+					creator: {
+						login: 'unauthorized-user',
+					},
+				},
+			};
+
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
 				.post('/graphql')
 				.reply(200, {
@@ -112,17 +219,11 @@ describe('GitHub Deployment App', () => {
 
 	describe('issue_comment.created', () => {
 		test('processes valid deploy comment', async () => {
-			// Mock all required API calls
 			const mock = nock('https://api.github.com')
-				// Mock installation token
-				.post('/app/installations/57364329/access_tokens')
+				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				// Add eyes reaction
-				.post(
-					'/repos/balena-io-experimental/deployable/issues/comments/2486741061/reactions',
-				)
+				.post('/repos/test-org/test-repo/issues/comments/456/reactions')
 				.reply(200)
-				// Get app identity
 				.post('/graphql')
 				.reply(200, {
 					data: {
@@ -132,24 +233,19 @@ describe('GitHub Deployment App', () => {
 						},
 					},
 				})
-				// Check user permissions
-				.get(
-					'/repos/balena-io-experimental/deployable/collaborators/klutchell/permission',
-				)
+				.get('/repos/test-org/test-repo/collaborators/test-user/permission')
 				.reply(200, { permission: 'admin' })
-				// Get PR details
-				.get('/repos/balena-io-experimental/deployable/pulls/2')
+				.get('/repos/test-org/test-repo/pulls/123')
 				.reply(200, {
-					head: { sha: 'abec9b0' },
+					head: { sha: 'test-sha' },
 				})
-				// List workflow runs
-				.get('/repos/balena-io-experimental/deployable/actions/runs')
+				.get('/repos/test-org/test-repo/actions/runs')
 				.query(true)
 				.reply(200, { workflow_runs: [] });
 
 			await probot.receive({
 				name: 'issue_comment',
-				payload: issueComment,
+				payload: testFixtures.issue_comment,
 			});
 
 			expect(mock.pendingMocks()).toStrictEqual([]);
@@ -157,9 +253,9 @@ describe('GitHub Deployment App', () => {
 
 		test('ignores non-deploy comments', async () => {
 			const payload = {
-				...issueComment,
+				...testFixtures.issue_comment,
 				comment: {
-					...issueComment.comment,
+					...testFixtures.issue_comment.comment,
 					body: 'Just a regular comment',
 				},
 			};
@@ -169,17 +265,16 @@ describe('GitHub Deployment App', () => {
 				payload,
 			});
 
-			// No API calls should be made
 			expect(nock.pendingMocks()).toStrictEqual([]);
 		});
 
 		test('ignores bot comments', async () => {
 			const payload = {
-				...issueComment,
+				...testFixtures.issue_comment,
 				comment: {
-					...issueComment.comment,
+					...testFixtures.issue_comment.comment,
 					user: {
-						...issueComment.comment.user,
+						...testFixtures.issue_comment.comment.user,
 						type: 'Bot',
 					},
 				},
@@ -190,8 +285,122 @@ describe('GitHub Deployment App', () => {
 				payload,
 			});
 
-			// No API calls should be made
 			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores edited comments', async () => {
+			const payload = {
+				...testFixtures.issue_comment,
+				comment: {
+					...testFixtures.issue_comment.comment,
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: '2024-01-01T00:01:00Z',
+				},
+			};
+
+			await probot.receive({
+				name: 'issue_comment',
+				payload,
+			});
+
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores comments on non-pull-requests', async () => {
+			const payload = {
+				...testFixtures.issue_comment,
+				issue: {
+					...testFixtures.issue_comment.issue,
+					pull_request: null,
+				},
+			};
+
+			await probot.receive({
+				name: 'issue_comment',
+				payload,
+			});
+
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('throws error on failure to get app user', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.post('/repos/test-org/test-repo/issues/comments/456/reactions')
+				.reply(200)
+				.post('/graphql')
+				.reply(404, { message: 'Not Found' });
+
+			await expect(
+				probot.receive({
+					name: 'issue_comment',
+					payload: testFixtures.issue_comment,
+				}),
+			).rejects.toThrow('Failed to get app user');
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores comments from self', async () => {
+			const payload = {
+				...testFixtures.issue_comment,
+				comment: {
+					...testFixtures.issue_comment.comment,
+					user: {
+						...testFixtures.issue_comment.comment.user,
+						login: 'test-bot',
+					},
+				},
+			};
+
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.post('/repos/test-org/test-repo/issues/comments/456/reactions')
+				.reply(200)
+				.post('/graphql')
+				.reply(200, {
+					data: {
+						viewer: {
+							login: 'test-bot',
+							databaseId: 123,
+						},
+					},
+				});
+
+			await probot.receive({
+				name: 'issue_comment',
+				payload,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores comments from users without write access', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.post('/repos/test-org/test-repo/issues/comments/456/reactions')
+				.reply(200)
+				.post('/graphql')
+				.reply(200, {
+					data: {
+						viewer: {
+							login: 'test-bot',
+							databaseId: 123,
+						},
+					},
+				})
+				.get('/repos/test-org/test-repo/collaborators/test-user/permission')
+				.reply(200, { permission: 'read' });
+
+			await probot.receive({
+				name: 'issue_comment',
+				payload: testFixtures.issue_comment,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
 		});
 	});
 });

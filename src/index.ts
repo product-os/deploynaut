@@ -19,7 +19,7 @@ export default (app: Probot) => {
 			return;
 		}
 
-		console.log('Deployment protection rule requested');
+		console.log('Received event: deployment_protection_rule.requested');
 		// console.log(JSON.stringify(context.payload, null, 2));
 		// console.log(JSON.stringify(deployment, null, 2));
 
@@ -28,11 +28,11 @@ export default (app: Probot) => {
 			return;
 		}
 
-		const appUser = await GitHubClient.whoAmI(context);
-
-		if (!appUser) {
-			context.log.error('Failed to get app user');
-			return;
+		let appUser;
+		try {
+			appUser = await GitHubClient.whoAmI(context);
+		} catch (error) {
+			throw new Error('Failed to get app user: %s', error);
 		}
 
 		if (deployment.creator.login === appUser.login) {
@@ -40,15 +40,26 @@ export default (app: Probot) => {
 			return;
 		}
 
-		if (
-			!['balena-renovate[bot]', 'klutchell'].includes(deployment.creator.login)
-		) {
+		if (!['balena-renovate[bot]'].includes(deployment.creator.login)) {
 			context.log.info(
 				'User %s is not on the auto-approve list',
 				deployment.creator.login,
 			);
 			return;
 		}
+
+		// const hasRepoWriteAccess = await GitHubClient.hasRepoWriteAccess(
+		//   context,
+		//   deployment.creator.login
+		// );
+
+		// if (!hasRepoWriteAccess) {
+		//   context.log.info(
+		//     "User %s does not have write access",
+		//     deployment.creator.login
+		//   );
+		//   return;
+		// }
 
 		context.log.info('Approving deployment %s', deployment.id);
 		return context.octokit.request(`POST ${callbackUrl}`, {
@@ -61,8 +72,8 @@ export default (app: Probot) => {
 	app.on('issue_comment.created', async (context: Context) => {
 		const { issue, comment } = context.payload as IssueCommentCreatedEvent;
 
-		console.log('Issue comment created');
-		console.log(JSON.stringify(context.payload, null, 2));
+		console.log('Received event: issue_comment.created');
+		// console.log(JSON.stringify(context.payload, null, 2));
 
 		if (issue.pull_request == null) {
 			context.log.info('Ignoring non-pull request comment');
@@ -87,14 +98,14 @@ export default (app: Probot) => {
 		// post a reaction to the comment with :eyes:
 		await GitHubClient.addCommentReaction(context, comment.id, 'eyes');
 
-		const appUser = await GitHubClient.whoAmI(context);
-
-		if (!appUser) {
-			context.log.error('Failed to get app user');
-			return;
+		let appUser;
+		try {
+			appUser = await GitHubClient.whoAmI(context);
+		} catch (error) {
+			throw new Error('Failed to get app user: %s', error);
 		}
 
-		if (comment.user.login === appUser.login) {
+		if (appUser.login === comment.user.login) {
 			context.log.info('Ignoring self comment');
 			return;
 		}

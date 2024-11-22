@@ -13,8 +13,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "start": "probot run ./lib/index.js",
-    "test": "vitest --coverage",
+    "start": "probot run ./lib/src/index.js",
+    "test": "npm run lint && vitest --coverage",
     "lint": "balena-lint src/ test/ && tsc --noEmit --project .",
     "lint-fix": "balena-lint --fix src/ test/",
     "prepare": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module"
