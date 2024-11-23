@@ -35,12 +35,14 @@ export default (app: Probot) => {
 			throw new Error('Failed to get app user: %s', error);
 		}
 
-		if (deployment.creator.login === appUser.login) {
+		if (deployment.creator.id === appUser.id) {
 			context.log.info('Ignoring self deployment');
 			return;
 		}
 
-		if (!['balena-renovate[bot]'].includes(deployment.creator.login)) {
+		const bypassActors = process.env.BYPASS_ACTORS?.split(',') ?? [];
+
+		if (!bypassActors.includes(deployment.creator.id.toString())) {
 			context.log.info(
 				'User %s is not on the auto-approve list',
 				deployment.creator.login,

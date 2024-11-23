@@ -20,7 +20,8 @@ const testFixtures = {
 			'https://api.github.com/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
 		deployment: {
 			creator: {
-				login: 'balena-renovate[bot]',
+				login: 'bypass-actor',
+				id: 5,
 			},
 		},
 		installation: { id: 12345678 },
@@ -63,8 +64,9 @@ describe('GitHub Deployment App', () => {
 
 	beforeEach(() => {
 		nock.disableNetConnect();
+		process.env.BYPASS_ACTORS = '5';
 		probot = new Probot({
-			appId: 123,
+			appId: 456,
 			privateKey,
 			// Disable request throttling and retries for testing
 			Octokit: ProbotOctokit.defaults({
@@ -160,6 +162,7 @@ describe('GitHub Deployment App', () => {
 				deployment: {
 					creator: {
 						login: 'test-bot',
+						id: 123,
 					},
 				},
 			};
@@ -191,6 +194,7 @@ describe('GitHub Deployment App', () => {
 				deployment: {
 					creator: {
 						login: 'unauthorized-user',
+						id: 789,
 					},
 				},
 			};
