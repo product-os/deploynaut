@@ -2,7 +2,7 @@
 	"*.ts": [
 		"balena-lint --fix"
 	],
-	"*.js": [
+	"*/**/*.js": [
 		"balena-lint --fix"
 	]
 }
