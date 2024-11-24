@@ -157,25 +157,21 @@ export default (app: Probot) => {
 				continue;
 			}
 
-			for (const deployment of deployments) {
-				if (!deployment.current_user_can_approve) {
-					context.log.info(
-						'User %s cannot approve deployment %s',
-						appUser.login,
-						deployment.id,
-					);
-					continue;
-				}
+			// map deployments to their environment names
+			const environments = deployments
+				.filter((deployment) => deployment.current_user_can_approve)
+				.map((deployment) => deployment.environment.name);
 
+			for (const environment of environments) {
 				context.log.info(
 					'Reviewing deployment with run %s and environment %s',
 					run.id,
-					deployment.environment.name,
+					environment,
 				);
 				await GitHubClient.reviewWorkflowRun(
 					context,
 					run.id,
-					deployment.environment.name,
+					environment,
 					'approved',
 					`Approved by ${comment.user.login} via ${appUser.login}`,
 				);
