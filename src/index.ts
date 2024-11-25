@@ -27,9 +27,9 @@ export default (app: Probot) => {
 			return;
 		}
 
-		const client = await app.auth(); // Gets an authenticated Octokit client
-		const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
-		// app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
+		// const client = await app.auth(); // Gets an authenticated Octokit client
+		// const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
+		// // app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
 
 		const bypassActors = process.env.BYPASS_ACTORS?.split(',') ?? [];
 
@@ -45,7 +45,7 @@ export default (app: Probot) => {
 		return context.octokit.request(`POST ${callbackUrl}`, {
 			environment_name: environment,
 			state: 'approved',
-			comment: `Approved by ${appDetails.slug} on behalf of ${deployment.creator.login}`,
+			comment: `Approved via bypass actors list for ${deployment.creator.login}`,
 		});
 	});
 
@@ -70,9 +70,9 @@ export default (app: Probot) => {
 			return;
 		}
 
-		const client = await app.auth(); // Gets an authenticated Octokit client
-		const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
-		// app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
+		// const client = await app.auth(); // Gets an authenticated Octokit client
+		// const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
+		// // app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
 
 		// let approved = false;
 
@@ -108,7 +108,7 @@ export default (app: Probot) => {
 					run.id,
 					environment,
 					'approved',
-					`Approved by ${appDetails.slug} via review comment: ${review.html_url}`,
+					`Approved by ${review.user.login} via review [comment](${review.html_url})`,
 				);
 				// approved = true;
 			}

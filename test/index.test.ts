@@ -83,8 +83,6 @@ describe('GitHub Deployment App', () => {
 	describe('deployment_protection_rule.requested', () => {
 		test('approves deployment for allowed user', async () => {
 			const mock = nock('https://api.github.com')
-				.get('/app')
-				.reply(200, { slug: 'test-bot' })
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
 				.post(
@@ -141,54 +139,40 @@ describe('GitHub Deployment App', () => {
 				},
 			};
 
-			const mock = nock('https://api.github.com')
-				.get('/app')
-				.reply(200, { slug: 'test-bot' });
-
 			await probot.receive({
 				name: 'deployment_protection_rule',
 				payload,
 			});
 
-			expect(mock.pendingMocks()).toStrictEqual([]);
+			expect(nock.pendingMocks()).toStrictEqual([]);
 		});
 
 		test('handles undefined BYPASS_ACTORS', async () => {
 			process.env.BYPASS_ACTORS = '';
 
-			const mock = nock('https://api.github.com')
-				.get('/app')
-				.reply(200, { slug: 'test-bot' });
-
 			await probot.receive({
 				name: 'deployment_protection_rule',
 				payload: testFixtures.deployment_protection_rule,
 			});
 
-			expect(mock.pendingMocks()).toStrictEqual([]);
+			expect(nock.pendingMocks()).toStrictEqual([]);
 		});
 
 		test('handles defined bypass actors with multiple values', async () => {
 			process.env.BYPASS_ACTORS = '1,2,3';
 
-			const mock = nock('https://api.github.com')
-				.get('/app')
-				.reply(200, { slug: 'test-bot' });
-
 			await probot.receive({
 				name: 'deployment_protection_rule',
 				payload: testFixtures.deployment_protection_rule,
 			});
 
-			expect(mock.pendingMocks()).toStrictEqual([]);
+			expect(nock.pendingMocks()).toStrictEqual([]);
 		});
 	});
 
 	describe('pull_request_review.submitted', () => {
 		test('processes valid deploy comment', async () => {
 			const mock = nock('https://api.github.com')
-				.get('/app')
-				.reply(200, { slug: 'test-bot' })
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
 				.get('/repos/test-org/test-repo/actions/runs')
@@ -250,8 +234,6 @@ describe('GitHub Deployment App', () => {
 
 		test('exits early if no matching workflow runs', async () => {
 			const mock = nock('https://api.github.com')
-				.get('/app')
-				.reply(200, { slug: 'test-bot' })
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
 				.get('/repos/test-org/test-repo/actions/runs')
@@ -268,8 +250,6 @@ describe('GitHub Deployment App', () => {
 
 		test('exits early if no pending deployments', async () => {
 			const mock = nock('https://api.github.com')
-				.get('/app')
-				.reply(200, { slug: 'test-bot' })
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
 				.get('/repos/test-org/test-repo/actions/runs')
@@ -288,8 +268,6 @@ describe('GitHub Deployment App', () => {
 
 		test('exits early if no deployments can be approved', async () => {
 			const mock = nock('https://api.github.com')
-				.get('/app')
-				.reply(200, { slug: 'test-bot' })
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
 				.get('/repos/test-org/test-repo/actions/runs')
