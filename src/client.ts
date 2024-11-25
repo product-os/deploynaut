@@ -89,16 +89,19 @@ export async function listPullRequestCommits(
 	return commits;
 }
 
-// export async function getPullRequest(
-// 	context: any,
-// 	prNumber: number,
-// ): Promise<any> {
-// 	const request = context.repo({
-// 		pull_number: prNumber,
-// 	});
-// 	const { data: pullRequest } = await context.octokit.rest.pulls.get(request);
-// 	return pullRequest;
-// }
+// https://octokit.github.io/rest.js/v21/#pulls-list-reviews
+// https://docs.github.com/en/rest/pulls/reviews?apiVersion=2022-11-28#list-reviews-for-a-pull-request
+export async function listPullRequestReviews(
+	context: any,
+	prNumber: number,
+): Promise<any[]> {
+	const request = context.repo({
+		pull_number: prNumber,
+	});
+	const { data: reviews } =
+		await context.octokit.rest.pulls.listReviews(request);
+	return reviews;
+}
 
 // https://octokit.github.io/rest.js/v21/#actions-list-workflow-runs-for-repo
 // https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-repository

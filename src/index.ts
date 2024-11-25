@@ -12,9 +12,16 @@ export default (app: Probot) => {
 			environment,
 			deployment,
 			deployment_callback_url: callbackUrl,
+			pull_requests: pullRequests,
 		} = context.payload as DeploymentProtectionRuleRequestedEvent;
 
-		if (!deployment || !event || !environment || !callbackUrl) {
+		if (
+			!deployment ||
+			!event ||
+			!environment ||
+			!callbackUrl ||
+			!pullRequests
+		) {
 			context.log.error('Deployment protection rule not found');
 			return;
 		}
@@ -32,21 +39,38 @@ export default (app: Probot) => {
 		// // app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
 
 		const bypassActors = process.env.BYPASS_ACTORS?.split(',') ?? [];
-
-		if (!bypassActors.includes(deployment.creator.id.toString())) {
-			context.log.info(
-				'User %s is not on the auto-approve list',
-				deployment.creator.login,
-			);
-			return;
+		if (bypassActors.includes(deployment.creator.id.toString())) {
+			// context.log.info('Approving deployment %s', deployment.id);
+			return context.octokit.request(`POST ${callbackUrl}`, {
+				environment_name: environment,
+				state: 'approved',
+				comment: `Approved via bypass actors list for ${deployment.creator.login}`,
+			});
 		}
 
-		context.log.info('Approving deployment %s', deployment.id);
-		return context.octokit.request(`POST ${callbackUrl}`, {
-			environment_name: environment,
-			state: 'approved',
-			comment: `Approved via bypass actors list for ${deployment.creator.login}`,
-		});
+		for (const pull of pullRequests) {
+			// get all reviews for the pull request
+			const reviews = await GitHubClient.listPullRequestReviews(
+				context,
+				pull.number,
+			);
+
+			// find the first review that is not a changes requested review and has the same sha as the deployment
+			const deployReview = reviews.find(
+				(review) =>
+					review.state !== 'CHANGES_REQUESTED' &&
+					review.commit_id === deployment.sha &&
+					review.body.startsWith('/deploy'),
+			);
+
+			if (deployReview) {
+				return context.octokit.request(`POST ${callbackUrl}`, {
+					environment_name: environment,
+					state: 'approved',
+					comment: `Approved by ${deployReview.user.login} via review [comment](${deployReview.html_url})`,
+				});
+			}
+		}
 	});
 
 	app.on('pull_request_review.submitted', async (context: Context) => {
