@@ -20,32 +20,33 @@ default_events:
   # - delete
   # - deployment
   # - deployment_status
+  - deployment_protection_rule
   # - fork
   # - gollum
   # - issue_comment
-  - issues
-# - label
-# - milestone
-# - member
-# - membership
-# - org_block
-# - organization
-# - page_build
-# - project
-# - project_card
-# - project_column
-# - public
-# - pull_request
-# - pull_request_review
-# - pull_request_review_comment
-# - push
-# - release
-# - repository
-# - repository_import
-# - status
-# - team
-# - team_add
-# - watch
+  # - issues
+  # - label
+  # - milestone
+  # - member
+  # - membership
+  # - org_block
+  # - organization
+  # - page_build
+  # - project
+  # - project_card
+  # - project_column
+  # - public
+  # - pull_request
+  - pull_request_review
+  # - pull_request_review_comment
+  # - push
+  # - release
+  # - repository
+  # - repository_import
+  # - status
+  # - team
+  # - team_add
+  # - watch
 
 # The set of permissions needed by the GitHub App. The format of the object uses
 # the permission name for the key (for example, issues) and the access type for
@@ -55,6 +56,9 @@ default_permissions:
   # Repository creation, deletion, settings, teams, and collaborators.
   # https://developer.github.com/v3/apps/permissions/#permission-on-administration
   # administration: read
+
+  # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-actions
+  actions: read
 
   # Checks on code.
   # https://developer.github.com/v3/apps/permissions/#permission-on-checks
@@ -66,11 +70,11 @@ default_permissions:
 
   # Deployments and deployment statuses.
   # https://developer.github.com/v3/apps/permissions/#permission-on-deployments
-  # deployments: read
+  deployments: write
 
   # Issues and related comments, assignees, labels, and milestones.
   # https://developer.github.com/v3/apps/permissions/#permission-on-issues
-  issues: write
+  # issues: write
 
   # Search repositories, list collaborators, and access repository metadata.
   # https://developer.github.com/v3/apps/permissions/#metadata-permissions
@@ -82,7 +86,7 @@ default_permissions:
 
   # Pull requests and related comments, assignees, labels, milestones, and merges.
   # https://developer.github.com/v3/apps/permissions/#permission-on-pull-requests
-  # pull_requests: read
+  pull_requests: write
 
   # Manage the post-receive hooks for a repository.
   # https://developer.github.com/v3/apps/permissions/#permission-on-repository-hooks
@@ -124,13 +128,13 @@ default_permissions:
   # https://developer.github.com/v3/apps/permissions/
   # organization_administration: read
 # The name of the GitHub App. Defaults to the name specified in package.json
-# name: My Probot App
+name: Deployable
 
 # The homepage of your GitHub App.
-# url: https://example.com/
+url: https://github.com/balena-io-experimental/deployable
 
 # A description of the GitHub App.
-# description: A description of my awesome app
+description: Approve deployments via comments from maintainers
 
 # Set to true when your GitHub App is available to the public or false when it is only accessible to the owner of the app.
 # Default: true

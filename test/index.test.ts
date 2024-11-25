@@ -1,83 +1,389 @@
-// You can import your modules
-// import index from '../src/index'
-
-import nock from "nock";
-// Requiring our app implementation
-import myProbotApp from "../src/index.js";
-import { Probot, ProbotOctokit } from "probot";
-// Requiring our fixtures
-//import payload from "./fixtures/issues.opened.json" with { "type": "json"};
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import { describe, beforeEach, afterEach, test, expect } from "vitest";
-
-const issueCreatedBody = { body: "Thanks for opening this issue!" };
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import nock from 'nock';
+import myProbotApp from '../src/index.js';
+import { Probot, ProbotOctokit } from 'probot';
+import fs from 'fs';
+import path from 'path';
+import { describe, beforeEach, afterEach, test, expect } from 'vitest';
 
 const privateKey = fs.readFileSync(
-  path.join(__dirname, "fixtures/mock-cert.pem"),
-  "utf-8",
+	path.join(__dirname, 'fixtures/mock-cert.pem'),
+	'utf-8',
 );
 
-const payload = JSON.parse(
-  fs.readFileSync(path.join(__dirname, "fixtures/issues.opened.json"), "utf-8"),
-);
+// Test fixtures
+const testFixtures = {
+	deployment_protection_rule: {
+		action: 'requested',
+		environment: 'test',
+		event: 'pull_request',
+		deployment_callback_url:
+			'https://api.github.com/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+		deployment: {
+			creator: {
+				login: 'bypass-actor',
+				id: 5,
+			},
+			sha: 'test-sha',
+		},
+		installation: { id: 12345678 },
+		repository: {
+			owner: {
+				login: 'test-org',
+			},
+			name: 'test-repo',
+		},
+		// eslint-disable-next-line id-denylist
+		pull_requests: [{ number: 123 }],
+	},
+	pull_request_review: {
+		action: 'submitted',
+		pull_request: {
+			head: {
+				sha: 'test-sha',
+			},
+		},
+		review: {
+			id: 456,
+			body: '/deploy please',
+			user: {
+				login: 'test-user',
+				id: 789,
+			},
+		},
+		installation: { id: 12345678 },
+		repository: {
+			owner: {
+				login: 'test-org',
+			},
+			name: 'test-repo',
+		},
+	},
+};
 
-describe("My Probot app", () => {
-  let probot: any;
+describe('GitHub Deployment App', () => {
+	let probot: any;
 
-  beforeEach(() => {
-    nock.disableNetConnect();
-    probot = new Probot({
-      appId: 123,
-      privateKey,
-      // disable request throttling and retries for testing
-      Octokit: ProbotOctokit.defaults({
-        retry: { enabled: false },
-        throttle: { enabled: false },
-      }),
-    });
-    // Load our app into probot
-    probot.load(myProbotApp);
-  });
+	beforeEach(() => {
+		nock.disableNetConnect();
+		process.env.BYPASS_ACTORS = '5';
+		probot = new Probot({
+			appId: 456,
+			privateKey,
+			// Disable request throttling and retries for testing
+			Octokit: ProbotOctokit.defaults({
+				retry: { enabled: false },
+				throttle: { enabled: false },
+			}),
+		});
+		probot.load(myProbotApp);
+	});
 
-  test("creates a comment when an issue is opened", async () => {
-    const mock = nock("https://api.github.com")
-      // Test that we correctly return a test token
-      .post("/app/installations/2/access_tokens")
-      .reply(200, {
-        token: "test",
-        permissions: {
-          issues: "write",
-        },
-      })
+	afterEach(() => {
+		nock.cleanAll();
+		nock.enableNetConnect();
+	});
 
-      // Test that a comment is posted
-      .post("/repos/hiimbex/testing-things/issues/1/comments", (body: any) => {
-        expect(body).toMatchObject(issueCreatedBody);
-        return true;
-      })
-      .reply(200);
+	describe('deployment_protection_rule.requested', () => {
+		test('approves deployment for allowed user', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.post(
+					'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+				)
+				.reply(200);
 
-    // Receive a webhook event
-    await probot.receive({ name: "issues", payload });
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: testFixtures.deployment_protection_rule,
+			});
 
-    expect(mock.pendingMocks()).toStrictEqual([]);
-  });
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
 
-  afterEach(() => {
-    nock.cleanAll();
-    nock.enableNetConnect();
-  });
+		test('ignores events with missing properties', async () => {
+			const payload = {
+				...testFixtures.deployment_protection_rule,
+				event: null,
+			};
+
+			const result = await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: payload,
+			});
+
+			expect(result).toBeUndefined();
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores non-pull-request events', async () => {
+			const payload = {
+				...testFixtures.deployment_protection_rule,
+				event: 'push',
+			};
+
+			const result = await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: payload,
+			});
+
+			expect(result).toBeUndefined();
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores deployment from unauthorized user', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/pulls/123/reviews')
+				.reply(200, [{ commit_id: 'test-sha', body: '/deploy please' }]);
+			const payload = {
+				...testFixtures.deployment_protection_rule,
+				deployment: {
+					creator: {
+						login: 'unauthorized-user',
+						id: 789,
+					},
+				},
+			};
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('handles undefined BYPASS_ACTORS', async () => {
+			process.env.BYPASS_ACTORS = '';
+
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/pulls/123/reviews')
+				.reply(200, []);
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: testFixtures.deployment_protection_rule,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('handles defined bypass actors with multiple values', async () => {
+			process.env.BYPASS_ACTORS = '1,2,3';
+
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/pulls/123/reviews')
+				.reply(200, []);
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: testFixtures.deployment_protection_rule,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('approves deployment for APPROVED pull request review', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/pulls/123/reviews')
+				.reply(200, [
+					{
+						commit_id: 'test-sha',
+						body: '/deploy please',
+						state: 'APPROVED',
+						user: { login: 'test-user', id: 789 },
+					},
+				])
+				.post(
+					'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+				)
+				.reply(200);
+
+			process.env.BYPASS_ACTORS = '';
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: testFixtures.deployment_protection_rule,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('approves deployment for COMMENTED pull request review', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/pulls/123/reviews')
+				.reply(200, [
+					{
+						commit_id: 'test-sha',
+						body: '/deploy please',
+						state: 'commented',
+						user: { login: 'test-user', id: 789 },
+					},
+				])
+				.post(
+					'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+				)
+				.reply(200);
+
+			process.env.BYPASS_ACTORS = '';
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: testFixtures.deployment_protection_rule,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores deployment for CHANGES_REQUESTED pull request review', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/pulls/123/reviews')
+				.reply(200, [
+					{
+						commit_id: 'test-sha',
+						body: '/deploy please',
+						state: 'CHANGES_REQUESTED',
+						user: { login: 'test-user', id: 789 },
+					},
+				]);
+
+			process.env.BYPASS_ACTORS = '';
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: testFixtures.deployment_protection_rule,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+	});
+
+	describe('pull_request_review.submitted', () => {
+		test('processes valid deploy comment', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/actions/runs')
+				.query(true)
+				.reply(200, { workflow_runs: [{ id: 1234 }] })
+				.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+				.reply(200, [
+					{ environment: { name: 'test' }, current_user_can_approve: true },
+				])
+				.post(
+					'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+				)
+				.reply(200);
+
+			await probot.receive({
+				name: 'pull_request_review',
+				payload: testFixtures.pull_request_review,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores non-deploy comments', async () => {
+			const payload = {
+				...testFixtures.pull_request_review,
+				review: {
+					...testFixtures.pull_request_review.review,
+					body: 'Just a regular comment',
+				},
+			};
+
+			await probot.receive({
+				name: 'pull_request_review',
+				payload,
+			});
+
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('ignores bot comments', async () => {
+			const payload = {
+				...testFixtures.pull_request_review,
+				review: {
+					...testFixtures.pull_request_review.review,
+					user: {
+						...testFixtures.pull_request_review.review.user,
+						type: 'Bot',
+					},
+				},
+			};
+
+			await probot.receive({
+				name: 'pull_request_review',
+				payload,
+			});
+
+			expect(nock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('exits early if no matching workflow runs', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/actions/runs')
+				.query(true)
+				.reply(200, { workflow_runs: [] });
+
+			await probot.receive({
+				name: 'pull_request_review',
+				payload: testFixtures.pull_request_review,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('exits early if no pending deployments', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/actions/runs')
+				.query(true)
+				.reply(200, { workflow_runs: [{ id: 1234 }] })
+				.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+				.reply(200, []);
+
+			await probot.receive({
+				name: 'pull_request_review',
+				payload: testFixtures.pull_request_review,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('exits early if no deployments can be approved', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/actions/runs')
+				.query(true)
+				.reply(200, { workflow_runs: [{ id: 1234 }] })
+				.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+				.reply(200, [
+					{ environment: { name: 'test' }, current_user_can_approve: false },
+				]);
+
+			await probot.receive({
+				name: 'pull_request_review',
+				payload: testFixtures.pull_request_review,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+	});
 });
-
-// For more information about testing with Jest see:
-// https://facebook.github.io/jest/
-
-// For more information about using TypeScript in your tests, Jest recommends:
-// https://github.com/kulshekhar/ts-jest
-
-// For more information about testing with Nock see:
-// https://github.com/nock/nock
