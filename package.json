@@ -1,6 +1,6 @@
 {
   "name": "deployable",
-  "version": "1.0.0",
+  "version": "0.0.2",
   "private": true,
   "description": "Approve deployments via comments from maintainers",
   "author": "Balena",
@@ -36,5 +36,8 @@
   "engines": {
     "node": ">= 18"
   },
-  "type": "module"
+  "type": "module",
+  "versionist": {
+    "publishedAt": "2024-11-25T20:13:26.590Z"
+  }
 }

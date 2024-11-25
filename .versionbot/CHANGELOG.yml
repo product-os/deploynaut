@@ -1,0 +1,13 @@
+- commits:
+    - subject: Initial commit of some app logic to print event payloads
+      hash: 4446a25ad09fcc4c7a948865448945ef10cef67a
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.2
+  title: ""
+  date: 2024-11-25T20:13:26.549Z
