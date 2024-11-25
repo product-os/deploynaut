@@ -2,7 +2,12 @@ name: Deploy
 
 on:
   pull_request:
-    branches: [main, master]
+    types: [opened, synchronize, closed]
+    branches: [main, master, develop]
+  # allow external contributions to use secrets within trusted code
+  pull_request_target:
+    types: [opened, synchronize, closed]
+    branches: [main, master, develop]
 
 jobs:
   test:
