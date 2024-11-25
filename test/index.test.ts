@@ -32,22 +32,20 @@ const testFixtures = {
 			name: 'test-repo',
 		},
 	},
-	issue_comment: {
-		action: 'created',
-		issue: {
-			// eslint-disable-next-line id-denylist
-			number: 123,
-			pull_request: {},
+	pull_request_review: {
+		action: 'submitted',
+		pull_request: {
+			head: {
+				sha: 'test-sha',
+			},
 		},
-		comment: {
+		review: {
 			id: 456,
+			body: '/deploy please',
 			user: {
 				login: 'test-user',
-				type: 'User',
+				id: 789,
 			},
-			body: '/deploy please',
-			created_at: '2024-01-01T00:00:00Z',
-			updated_at: '2024-01-01T00:00:00Z',
 		},
 		installation: { id: 12345678 },
 		repository: {
@@ -85,17 +83,10 @@ describe('GitHub Deployment App', () => {
 	describe('deployment_protection_rule.requested', () => {
 		test('approves deployment for allowed user', async () => {
 			const mock = nock('https://api.github.com')
+				.get('/app')
+				.reply(200, { slug: 'test-bot' })
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.post('/graphql')
-				.reply(200, {
-					data: {
-						viewer: {
-							login: 'test-bot',
-							databaseId: 123,
-						},
-					},
-				})
 				.post(
 					'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
 				)
@@ -139,55 +130,6 @@ describe('GitHub Deployment App', () => {
 			expect(nock.pendingMocks()).toStrictEqual([]);
 		});
 
-		test('throws error on failure to get app user', async () => {
-			const mock = nock('https://api.github.com')
-				.post('/app/installations/12345678/access_tokens')
-				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.post('/graphql')
-				.reply(404, { message: 'Not Found' });
-
-			await expect(
-				probot.receive({
-					name: 'deployment_protection_rule',
-					payload: testFixtures.deployment_protection_rule,
-				}),
-			).rejects.toThrow('Failed to get app user');
-
-			expect(mock.pendingMocks()).toStrictEqual([]);
-		});
-
-		test('ignores deployment from self', async () => {
-			const payload = {
-				...testFixtures.deployment_protection_rule,
-				deployment: {
-					creator: {
-						login: 'test-bot',
-						id: 123,
-					},
-				},
-			};
-
-			const mock = nock('https://api.github.com')
-				.post('/app/installations/12345678/access_tokens')
-				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.post('/graphql')
-				.reply(200, {
-					data: {
-						viewer: {
-							login: 'test-bot',
-							databaseId: 123,
-						},
-					},
-				});
-
-			await probot.receive({
-				name: 'deployment_protection_rule',
-				payload,
-			});
-
-			expect(mock.pendingMocks()).toStrictEqual([]);
-		});
-
 		test('ignores deployment from unauthorized user', async () => {
 			const payload = {
 				...testFixtures.deployment_protection_rule,
@@ -200,17 +142,8 @@ describe('GitHub Deployment App', () => {
 			};
 
 			const mock = nock('https://api.github.com')
-				.post('/app/installations/12345678/access_tokens')
-				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.post('/graphql')
-				.reply(200, {
-					data: {
-						viewer: {
-							login: 'test-bot',
-							databaseId: 123,
-						},
-					},
-				});
+				.get('/app')
+				.reply(200, { slug: 'test-bot' });
 
 			await probot.receive({
 				name: 'deployment_protection_rule',
@@ -219,37 +152,60 @@ describe('GitHub Deployment App', () => {
 
 			expect(mock.pendingMocks()).toStrictEqual([]);
 		});
-	});
 
-	describe('issue_comment.created', () => {
-		test('processes valid deploy comment', async () => {
+		test('handles undefined BYPASS_ACTORS', async () => {
+			process.env.BYPASS_ACTORS = '';
+
 			const mock = nock('https://api.github.com')
-				.post('/app/installations/12345678/access_tokens')
-				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.post('/repos/test-org/test-repo/issues/comments/456/reactions')
-				.reply(200)
-				.post('/graphql')
-				.reply(200, {
-					data: {
-						viewer: {
-							login: 'test-bot',
-							databaseId: 123,
-						},
-					},
-				})
-				.get('/repos/test-org/test-repo/collaborators/test-user/permission')
-				.reply(200, { permission: 'admin' })
-				.get('/repos/test-org/test-repo/pulls/123')
-				.reply(200, {
-					head: { sha: 'test-sha' },
-				})
-				.get('/repos/test-org/test-repo/actions/runs')
-				.query(true)
-				.reply(200, { workflow_runs: [] });
+				.get('/app')
+				.reply(200, { slug: 'test-bot' });
 
 			await probot.receive({
-				name: 'issue_comment',
-				payload: testFixtures.issue_comment,
+				name: 'deployment_protection_rule',
+				payload: testFixtures.deployment_protection_rule,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('handles defined bypass actors with multiple values', async () => {
+			process.env.BYPASS_ACTORS = '1,2,3';
+
+			const mock = nock('https://api.github.com')
+				.get('/app')
+				.reply(200, { slug: 'test-bot' });
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: testFixtures.deployment_protection_rule,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+	});
+
+	describe('pull_request_review.submitted', () => {
+		test('processes valid deploy comment', async () => {
+			const mock = nock('https://api.github.com')
+				.get('/app')
+				.reply(200, { slug: 'test-bot' })
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/actions/runs')
+				.query(true)
+				.reply(200, { workflow_runs: [{ id: 1234 }] })
+				.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+				.reply(200, [
+					{ environment: { name: 'test' }, current_user_can_approve: true },
+				])
+				.post(
+					'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+				)
+				.reply(200);
+
+			await probot.receive({
+				name: 'pull_request_review',
+				payload: testFixtures.pull_request_review,
 			});
 
 			expect(mock.pendingMocks()).toStrictEqual([]);
@@ -257,15 +213,15 @@ describe('GitHub Deployment App', () => {
 
 		test('ignores non-deploy comments', async () => {
 			const payload = {
-				...testFixtures.issue_comment,
-				comment: {
-					...testFixtures.issue_comment.comment,
+				...testFixtures.pull_request_review,
+				review: {
+					...testFixtures.pull_request_review.review,
 					body: 'Just a regular comment',
 				},
 			};
 
 			await probot.receive({
-				name: 'issue_comment',
+				name: 'pull_request_review',
 				payload,
 			});
 
@@ -274,134 +230,79 @@ describe('GitHub Deployment App', () => {
 
 		test('ignores bot comments', async () => {
 			const payload = {
-				...testFixtures.issue_comment,
-				comment: {
-					...testFixtures.issue_comment.comment,
+				...testFixtures.pull_request_review,
+				review: {
+					...testFixtures.pull_request_review.review,
 					user: {
-						...testFixtures.issue_comment.comment.user,
+						...testFixtures.pull_request_review.review.user,
 						type: 'Bot',
 					},
 				},
 			};
 
 			await probot.receive({
-				name: 'issue_comment',
+				name: 'pull_request_review',
 				payload,
 			});
 
 			expect(nock.pendingMocks()).toStrictEqual([]);
 		});
 
-		test('ignores edited comments', async () => {
-			const payload = {
-				...testFixtures.issue_comment,
-				comment: {
-					...testFixtures.issue_comment.comment,
-					created_at: '2024-01-01T00:00:00Z',
-					updated_at: '2024-01-01T00:01:00Z',
-				},
-			};
-
-			await probot.receive({
-				name: 'issue_comment',
-				payload,
-			});
-
-			expect(nock.pendingMocks()).toStrictEqual([]);
-		});
-
-		test('ignores comments on non-pull-requests', async () => {
-			const payload = {
-				...testFixtures.issue_comment,
-				issue: {
-					...testFixtures.issue_comment.issue,
-					pull_request: null,
-				},
-			};
-
-			await probot.receive({
-				name: 'issue_comment',
-				payload,
-			});
-
-			expect(nock.pendingMocks()).toStrictEqual([]);
-		});
-
-		test('throws error on failure to get app user', async () => {
+		test('exits early if no matching workflow runs', async () => {
 			const mock = nock('https://api.github.com')
+				.get('/app')
+				.reply(200, { slug: 'test-bot' })
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.post('/repos/test-org/test-repo/issues/comments/456/reactions')
-				.reply(200)
-				.post('/graphql')
-				.reply(404, { message: 'Not Found' });
-
-			await expect(
-				probot.receive({
-					name: 'issue_comment',
-					payload: testFixtures.issue_comment,
-				}),
-			).rejects.toThrow('Failed to get app user');
-
-			expect(mock.pendingMocks()).toStrictEqual([]);
-		});
-
-		test('ignores comments from self', async () => {
-			const payload = {
-				...testFixtures.issue_comment,
-				comment: {
-					...testFixtures.issue_comment.comment,
-					user: {
-						...testFixtures.issue_comment.comment.user,
-						login: 'test-bot',
-					},
-				},
-			};
-
-			const mock = nock('https://api.github.com')
-				.post('/app/installations/12345678/access_tokens')
-				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.post('/repos/test-org/test-repo/issues/comments/456/reactions')
-				.reply(200)
-				.post('/graphql')
-				.reply(200, {
-					data: {
-						viewer: {
-							login: 'test-bot',
-							databaseId: 123,
-						},
-					},
-				});
+				.get('/repos/test-org/test-repo/actions/runs')
+				.query(true)
+				.reply(200, { workflow_runs: [] });
 
 			await probot.receive({
-				name: 'issue_comment',
-				payload,
+				name: 'pull_request_review',
+				payload: testFixtures.pull_request_review,
 			});
 
 			expect(mock.pendingMocks()).toStrictEqual([]);
 		});
 
-		test('ignores comments from users without write access', async () => {
+		test('exits early if no pending deployments', async () => {
 			const mock = nock('https://api.github.com')
+				.get('/app')
+				.reply(200, { slug: 'test-bot' })
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.post('/repos/test-org/test-repo/issues/comments/456/reactions')
-				.reply(200)
-				.post('/graphql')
-				.reply(200, {
-					data: {
-						viewer: {
-							login: 'test-bot',
-							databaseId: 123,
-						},
-					},
-				})
-				.get('/repos/test-org/test-repo/collaborators/test-user/permission')
-				.reply(200, { permission: 'read' });
+				.get('/repos/test-org/test-repo/actions/runs')
+				.query(true)
+				.reply(200, { workflow_runs: [{ id: 1234 }] })
+				.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+				.reply(200, []);
 
 			await probot.receive({
-				name: 'issue_comment',
-				payload: testFixtures.issue_comment,
+				name: 'pull_request_review',
+				payload: testFixtures.pull_request_review,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('exits early if no deployments can be approved', async () => {
+			const mock = nock('https://api.github.com')
+				.get('/app')
+				.reply(200, { slug: 'test-bot' })
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/repos/test-org/test-repo/actions/runs')
+				.query(true)
+				.reply(200, { workflow_runs: [{ id: 1234 }] })
+				.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+				.reply(200, [
+					{ environment: { name: 'test' }, current_user_can_approve: false },
+				]);
+
+			await probot.receive({
+				name: 'pull_request_review',
+				payload: testFixtures.pull_request_review,
 			});
 
 			expect(mock.pendingMocks()).toStrictEqual([]);

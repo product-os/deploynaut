@@ -1,7 +1,7 @@
 import type { Context, Probot } from 'probot';
 import type {
-	IssueCommentCreatedEvent,
 	DeploymentProtectionRuleRequestedEvent,
+	PullRequestReviewSubmittedEvent,
 } from '@octokit/webhooks-types';
 import * as GitHubClient from './client.js';
 
@@ -19,26 +19,17 @@ export default (app: Probot) => {
 			return;
 		}
 
-		console.log('Received event: deployment_protection_rule.requested');
-		// console.log(JSON.stringify(context.payload, null, 2));
-		// console.log(JSON.stringify(deployment, null, 2));
+		app.log.info('Received event: deployment_protection_rule.requested');
+		// app.log.info(JSON.stringify(context.payload, null, 2));
 
 		if (!['pull_request', 'pull_request_target'].includes(event)) {
 			context.log.info('Ignoring non-pull request event');
 			return;
 		}
 
-		let appUser;
-		try {
-			appUser = await GitHubClient.whoAmI(context);
-		} catch (error) {
-			throw new Error('Failed to get app user: %s', error);
-		}
-
-		if (deployment.creator.id === appUser.id) {
-			context.log.info('Ignoring self deployment');
-			return;
-		}
+		const client = await app.auth(); // Gets an authenticated Octokit client
+		const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
+		// app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
 
 		const bypassActors = process.env.BYPASS_ACTORS?.split(',') ?? [];
 
@@ -50,98 +41,42 @@ export default (app: Probot) => {
 			return;
 		}
 
-		// const hasRepoWriteAccess = await GitHubClient.hasRepoWriteAccess(
-		//   context,
-		//   deployment.creator.login
-		// );
-
-		// if (!hasRepoWriteAccess) {
-		//   context.log.info(
-		//     "User %s does not have write access",
-		//     deployment.creator.login
-		//   );
-		//   return;
-		// }
-
 		context.log.info('Approving deployment %s', deployment.id);
 		return context.octokit.request(`POST ${callbackUrl}`, {
 			environment_name: environment,
 			state: 'approved',
-			comment: `Auto-approved by ${appUser.login} on behalf of ${deployment.creator.login}`,
+			comment: `Approved by ${appDetails.slug} on behalf of ${deployment.creator.login}`,
 		});
 	});
 
-	app.on('issue_comment.created', async (context: Context) => {
-		const { issue, comment } = context.payload as IssueCommentCreatedEvent;
+	app.on('pull_request_review.submitted', async (context: Context) => {
+		const {
+			review,
+			pull_request: {
+				head: { sha },
+			},
+		} = context.payload as PullRequestReviewSubmittedEvent;
 
-		console.log('Received event: issue_comment.created');
-		// console.log(JSON.stringify(context.payload, null, 2));
+		app.log.info('Received event: pull_request_review.submitted');
+		// app.log.info(JSON.stringify(context.payload, null, 2));
 
-		if (issue.pull_request == null) {
-			context.log.info('Ignoring non-pull request comment');
+		if (review.user.type === 'Bot') {
+			context.log.info('Ignoring bot review');
 			return;
 		}
 
-		if (comment.user.type === 'Bot') {
-			context.log.info('Ignoring bot comment');
-			return;
-		}
-
-		if (!comment.body.startsWith('/deploy')) {
+		if (!review.body?.startsWith('/deploy')) {
 			context.log.info('Ignoring non-deploy comment');
 			return;
 		}
 
-		if (comment.created_at !== comment.updated_at) {
-			context.log.info('Ignoring edited comment');
-			return;
-		}
+		const client = await app.auth(); // Gets an authenticated Octokit client
+		const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
+		// app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
 
-		// post a reaction to the comment with :eyes:
-		await GitHubClient.addCommentReaction(context, comment.id, 'eyes');
+		// let approved = false;
 
-		let appUser;
-		try {
-			appUser = await GitHubClient.whoAmI(context);
-		} catch (error) {
-			throw new Error('Failed to get app user: %s', error);
-		}
-
-		if (appUser.login === comment.user.login) {
-			context.log.info('Ignoring self comment');
-			return;
-		}
-
-		const hasRepoWriteAccess = await GitHubClient.hasRepoWriteAccess(
-			context,
-			comment.user.login,
-		);
-
-		if (!hasRepoWriteAccess) {
-			context.log.info('User does not have write access');
-			return;
-		}
-
-		const {
-			head: { sha },
-		} = await GitHubClient.getPullRequest(context, issue.number);
-
-		// Get the ISO date 2-min before the comment.created_at
-		const created = new Date(comment.created_at);
-		created.setMinutes(created.getMinutes() - 2);
-
-		// filter workflow runs with the given hash and a creation date 2 minutes or more before the comment created date
-		// https://docs.github.com/en/search-github/getting-started-with-searching-on-github/understanding-the-search-syntax#query-for-dates
-		const runs = await GitHubClient.listWorkflowRuns(
-			context,
-			sha,
-			`<${created.toISOString()}`,
-		);
-
-		if (runs.length === 0) {
-			context.log.info('No workflow runs found for sha %s', sha);
-			return;
-		}
+		const runs = await GitHubClient.listWorkflowRuns(context, sha);
 
 		for (const run of runs) {
 			const deployments = await GitHubClient.listPendingDeployments(
@@ -173,10 +108,27 @@ export default (app: Probot) => {
 					run.id,
 					environment,
 					'approved',
-					`Approved by ${comment.user.login} via ${appUser.login}`,
+					`Approved by ${appDetails.slug} via review comment: ${review.html_url}`,
 				);
+				// approved = true;
 			}
 		}
+
+		// if (approved) {
+		// 	// post a reaction to the comment with :rocket:
+		// 	await GitHubClient.addPullRequestReviewCommentReaction(
+		// 		context,
+		// 		review.id,
+		// 		'rocket',
+		// 	);
+		// } else {
+		// 	// post a reaction to the comment with :confused:
+		// 	await GitHubClient.addPullRequestReviewCommentReaction(
+		// 		context,
+		// 		review.id,
+		// 		'confused',
+		// 	);
+		// }
 	});
 	// For more information on building apps:
 	// https://probot.github.io/docs/
