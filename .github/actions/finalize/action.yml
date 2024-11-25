@@ -1,0 +1,10 @@
+# https://docs.github.com/en/actions/creating-actions/creating-a-composite-action
+name: "Finalize custom"
+description: "Custom finalize step to run during a pull request"
+runs:
+  using: "composite"
+  steps:
+    - name: Print environment
+      shell: bash
+      run: |
+        echo "Running in environment: ${environment}"
