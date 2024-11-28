@@ -1,4 +1,17 @@
 - commits:
+    - subject: Run deployments on more events for testing
+      hash: 2b7cb43a1b6c068c9242a259c6b42e9b4b234783
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.3
+  title: ""
+  date: 2024-11-28T18:23:50.848Z
+- commits:
     - subject: Initial commit of some app logic to print event payloads
       hash: 4446a25ad09fcc4c7a948865448945ef10cef67a
       body: ""
