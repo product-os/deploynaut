@@ -1,4 +1,17 @@
 - commits:
+    - subject: Post instructional comments for pending deployments
+      hash: 4086bbab92a8b50aaf8b1619abf110fb8d654088
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.5
+  title: ""
+  date: 2024-12-03T20:27:01.221Z
+- commits:
     - subject: Rename app and move to product-os organization
       hash: 861aa6945124707d8f8ffa0a8b6e8025b7c42886
       body: ""
