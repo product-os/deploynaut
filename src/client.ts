@@ -69,25 +69,25 @@
 //   return deployments;
 // }
 
-export async function listPullRequestContributors(
-	context: any,
-	prNumber: number,
-): Promise<string[]> {
-	const commits = await this.listPullRequestCommits(context, prNumber);
-	return commits.map((c: any) => c.author.id);
-}
+// export async function listPullRequestContributors(
+// 	context: any,
+// 	prNumber: number,
+// ): Promise<string[]> {
+// 	const commits = await this.listPullRequestCommits(context, prNumber);
+// 	return commits.map((c: any) => c.author.id);
+// }
 
-export async function listPullRequestCommits(
-	context: any,
-	prNumber: number,
-): Promise<any[]> {
-	const request = context.repo({
-		pull_number: prNumber,
-	});
-	const { data: commits } =
-		await context.octokit.rest.pulls.listPullRequestCommits(request);
-	return commits;
-}
+// export async function listPullRequestCommits(
+// 	context: any,
+// 	prNumber: number,
+// ): Promise<any[]> {
+// 	const request = context.repo({
+// 		pull_number: prNumber,
+// 	});
+// 	const { data: commits } =
+// 		await context.octokit.rest.pulls.listPullRequestCommits(request);
+// 	return commits;
+// }
 
 // https://octokit.github.io/rest.js/v21/#pulls-list-reviews
 // https://docs.github.com/en/rest/pulls/reviews?apiVersion=2022-11-28#list-reviews-for-a-pull-request
@@ -156,3 +156,45 @@ export async function reviewWorkflowRun(
 		await context.octokit.rest.actions.reviewCustomGatesForRun(request);
 	return review;
 }
+
+// https://octokit.github.io/rest.js/v18/#issues-list-comments
+// https://docs.github.com/en/rest/issues/comments#list-issue-comments
+export async function listIssueComments(
+	context: any,
+	issueNumber: number,
+): Promise<any[]> {
+	const request = context.repo({
+		issue_number: issueNumber,
+	});
+	const { data: comments } =
+		await context.octokit.rest.issues.listComments(request);
+	return comments;
+}
+
+// https://octokit.github.io/rest.js/v18/#issues-create-comment
+// https://docs.github.com/en/rest/issues/comments#create-an-issue-comment
+export async function createIssueComment(
+	context: any,
+	issueNumber: number,
+	body: string,
+): Promise<any> {
+	const request = context.repo({
+		issue_number: issueNumber,
+		body,
+	});
+	const { data: comment } =
+		await context.octokit.rest.issues.createComment(request);
+	return comment;
+}
+
+// // https://octokit.github.io/rest.js/v18/#issues-delete-comment
+// // https://docs.github.com/en/rest/issues/comments#delete-an-issue-comment
+// export async function deleteIssueComment(
+// 	context: any,
+// 	commentId: number,
+// ): Promise<void> {
+// 	const request = context.repo({
+// 		comment_id: commentId,
+// 	});
+// 	await context.octokit.rest.issues.deleteComment(request);
+// }

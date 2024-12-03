@@ -5,6 +5,10 @@ import type {
 } from '@octokit/webhooks-types';
 import * as GitHubClient from './client.js';
 
+export const instructionalComment =
+	'One or more environments associated with this pull request require approval before deploying workflow runs.\n\n' +
+	'Maintainers can approve by submitting a [Review](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/reviewing-proposed-changes-in-a-pull-request#submitting-your-review) with the comment `/deploy please`.';
+
 export default (app: Probot) => {
 	app.on('deployment_protection_rule.requested', async (context: Context) => {
 		const {
@@ -31,25 +35,18 @@ export default (app: Probot) => {
 			},
 		};
 
-		context.log.info(
+		app.log.info(
 			'Received deployment protection rule event: %s',
 			JSON.stringify(eventDetails, null, 2),
 		);
 
 		if (!deployment || !event || !environment || !callbackUrl) {
-			context.log.error('Payload is missing required properties');
+			app.log.error('Payload is missing required properties');
 			return;
 		}
 
-		// app.log.info('Received Deployment Protection Rule with Deployment ID: %s', deployment.id);
-		// app.log.info(JSON.stringify(context.payload, null, 2));
-
-		// const client = await app.auth(); // Gets an authenticated Octokit client
-		// const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
-		// // app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
-
 		if (!['pull_request', 'pull_request_target', 'push'].includes(event)) {
-			context.log.info(
+			app.log.info(
 				'Ignoring unsupported deployment protection rule event: %s',
 				event,
 			);
@@ -65,10 +62,14 @@ export default (app: Probot) => {
 			});
 		}
 
-		context.log.debug(
+		app.log.debug(
 			'Actor is not included in bypass actors: %s',
 			deployment.creator.login,
 		);
+
+		const client = await app.auth(); // Gets an authenticated Octokit client
+		const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
+		// app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
 
 		if (pullRequests) {
 			for (const pull of pullRequests) {
@@ -93,6 +94,22 @@ export default (app: Probot) => {
 						comment: `Approved by ${deployReview.user.login} via [review](${deployReview.html_url})`,
 					});
 				}
+
+				const comments = await filterIssueComments(
+					context,
+					pull.number,
+					appDetails.id,
+					instructionalComment,
+				);
+
+				// Try to avoid creating duplicate comments but there will always be a race condition
+				if (comments.length === 0) {
+					await GitHubClient.createIssueComment(
+						context,
+						pull.number,
+						instructionalComment,
+					);
+				}
 			}
 		}
 	});
@@ -112,18 +129,18 @@ export default (app: Probot) => {
 			},
 		};
 
-		context.log.info(
+		app.log.info(
 			'Received pull request review event: %s',
 			JSON.stringify(eventDetails, null, 2),
 		);
 
 		if (review.user.type === 'Bot') {
-			context.log.info('Ignoring bot review');
+			app.log.info('Ignoring bot review');
 			return;
 		}
 
 		if (!review.body?.startsWith('/deploy')) {
-			context.log.info('Ignoring unsupported comment');
+			app.log.info('Ignoring unsupported comment');
 			return;
 		}
 
@@ -140,7 +157,7 @@ export default (app: Probot) => {
 			);
 
 			if (deployments.length === 0) {
-				context.log.info(
+				app.log.info(
 					'No pending deployments found for workflow run %s',
 					run.id,
 				);
@@ -169,3 +186,19 @@ export default (app: Probot) => {
 	// To get your app running against GitHub, see:
 	// https://probot.github.io/docs/development/
 };
+
+// Find existing comments that match the provided criteria
+async function filterIssueComments(
+	context: any,
+	issueNumber: number,
+	appId: number,
+	startsWith: string,
+): Promise<any> {
+	const comments = await GitHubClient.listIssueComments(context, issueNumber);
+	return comments.filter(
+		(c) =>
+			c.body.startsWith(startsWith) &&
+			c.performed_via_github_app.id === appId &&
+			c.created_at === c.updated_at,
+	);
+}
