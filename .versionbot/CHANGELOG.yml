@@ -1,4 +1,17 @@
 - commits:
+    - subject: Rename app and move to product-os organization
+      hash: 861aa6945124707d8f8ffa0a8b6e8025b7c42886
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.4
+  title: ""
+  date: 2024-12-03T17:30:26.814Z
+- commits:
     - subject: Run deployments on more events for testing
       hash: 2b7cb43a1b6c068c9242a259c6b42e9b4b234783
       body: ""
