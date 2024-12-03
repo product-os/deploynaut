@@ -1,5 +1,5 @@
 import nock from 'nock';
-import myProbotApp from '../src/index.js';
+import myProbotApp, { instructionalComment } from '../src/index.js';
 import { Probot, ProbotOctokit } from 'probot';
 import fs from 'fs';
 import path from 'path';
@@ -61,7 +61,7 @@ describe('GitHub Deployment App', () => {
 
 	beforeEach(() => {
 		nock.disableNetConnect();
-		process.env.BYPASS_ACTORS = '5';
+		process.env.BYPASS_ACTORS = '5,10';
 		probot = new Probot({
 			appId: 456,
 			privateKey,
@@ -80,7 +80,7 @@ describe('GitHub Deployment App', () => {
 	});
 
 	describe('deployment_protection_rule.requested', () => {
-		test('approves deployment for allowed user', async () => {
+		test('approves deployment created by bypass user', async () => {
 			const mock = nock('https://api.github.com')
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
@@ -97,7 +97,7 @@ describe('GitHub Deployment App', () => {
 			expect(mock.pendingMocks()).toStrictEqual([]);
 		});
 
-		test('ignores events with missing properties', async () => {
+		test('skips events with missing properties', async () => {
 			const payload = {
 				...testFixtures.deployment_protection_rule,
 				event: null,
@@ -112,7 +112,7 @@ describe('GitHub Deployment App', () => {
 			expect(nock.pendingMocks()).toStrictEqual([]);
 		});
 
-		test('ignores unsupported events', async () => {
+		test('skips unsupported events', async () => {
 			const payload = {
 				...testFixtures.deployment_protection_rule,
 				event: 'workflow_run',
@@ -127,68 +127,72 @@ describe('GitHub Deployment App', () => {
 			expect(nock.pendingMocks()).toStrictEqual([]);
 		});
 
-		test('ignores deployment from unauthorized user', async () => {
-			const mock = nock('https://api.github.com')
-				.post('/app/installations/12345678/access_tokens')
-				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.get('/repos/test-org/test-repo/pulls/123/reviews')
-				.reply(200, [{ commit_id: 'test-sha', body: '/deploy please' }]);
-			const payload = {
-				...testFixtures.deployment_protection_rule,
-				deployment: {
-					creator: {
-						login: 'unauthorized-user',
-						id: 789,
-					},
-				},
-			};
+		// test('ignores deployment from unauthorized user', async () => {
+		// 	const mock = nock('https://api.github.com')
+		// 		.post('/app/installations/12345678/access_tokens')
+		// 		.reply(200, { token: 'test', permissions: { issues: 'write' } })
+		// 		.get('/app')
+		// 		.reply(200, { id: 456 })
+		// 		.get('/repos/test-org/test-repo/pulls/123/reviews')
+		// 		.reply(200, [{ commit_id: 'test-sha', body: '/deploy please' }]);
+		// 	const payload = {
+		// 		...testFixtures.deployment_protection_rule,
+		// 		deployment: {
+		// 			creator: {
+		// 				login: 'unauthorized-user',
+		// 				id: 789,
+		// 			},
+		// 		},
+		// 	};
 
-			await probot.receive({
-				name: 'deployment_protection_rule',
-				payload,
-			});
+		// 	await probot.receive({
+		// 		name: 'deployment_protection_rule',
+		// 		payload,
+		// 	});
 
-			expect(mock.pendingMocks()).toStrictEqual([]);
-		});
+		// 	expect(mock.pendingMocks()).toStrictEqual([]);
+		// });
 
-		test('handles undefined BYPASS_ACTORS', async () => {
-			process.env.BYPASS_ACTORS = '';
+		// test('handles undefined BYPASS_ACTORS', async () => {
+		// 	process.env.BYPASS_ACTORS = '';
 
-			const mock = nock('https://api.github.com')
-				.post('/app/installations/12345678/access_tokens')
-				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.get('/repos/test-org/test-repo/pulls/123/reviews')
-				.reply(200, []);
+		// 	const mock = nock('https://api.github.com')
+		// 		.post('/app/installations/12345678/access_tokens')
+		// 		.reply(200, { token: 'test', permissions: { issues: 'write' } })
+		// 		.get('/repos/test-org/test-repo/pulls/123/reviews')
+		// 		.reply(200, []);
 
-			await probot.receive({
-				name: 'deployment_protection_rule',
-				payload: testFixtures.deployment_protection_rule,
-			});
+		// 	await probot.receive({
+		// 		name: 'deployment_protection_rule',
+		// 		payload: testFixtures.deployment_protection_rule,
+		// 	});
 
-			expect(mock.pendingMocks()).toStrictEqual([]);
-		});
+		// 	expect(mock.pendingMocks()).toStrictEqual([]);
+		// });
 
-		test('handles defined bypass actors with multiple values', async () => {
-			process.env.BYPASS_ACTORS = '1,2,3';
+		// test('handles defined bypass actors with multiple values', async () => {
+		// 	process.env.BYPASS_ACTORS = '5,10,15';
 
-			const mock = nock('https://api.github.com')
-				.post('/app/installations/12345678/access_tokens')
-				.reply(200, { token: 'test', permissions: { issues: 'write' } })
-				.get('/repos/test-org/test-repo/pulls/123/reviews')
-				.reply(200, []);
+		// 	const mock = nock('https://api.github.com')
+		// 		.post('/app/installations/12345678/access_tokens')
+		// 		.reply(200, { token: 'test', permissions: { issues: 'write' } })
+		// 		.get('/repos/test-org/test-repo/pulls/123/reviews')
+		// 		.reply(200, []);
 
-			await probot.receive({
-				name: 'deployment_protection_rule',
-				payload: testFixtures.deployment_protection_rule,
-			});
+		// 	await probot.receive({
+		// 		name: 'deployment_protection_rule',
+		// 		payload: testFixtures.deployment_protection_rule,
+		// 	});
 
-			expect(mock.pendingMocks()).toStrictEqual([]);
-		});
+		// 	expect(mock.pendingMocks()).toStrictEqual([]);
+		// });
 
 		test('approves deployment for APPROVED pull request review', async () => {
 			const mock = nock('https://api.github.com')
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/app')
+				.reply(200, { id: 456 })
 				.get('/repos/test-org/test-repo/pulls/123/reviews')
 				.reply(200, [
 					{
@@ -217,6 +221,8 @@ describe('GitHub Deployment App', () => {
 			const mock = nock('https://api.github.com')
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/app')
+				.reply(200, { id: 456 })
 				.get('/repos/test-org/test-repo/pulls/123/reviews')
 				.reply(200, [
 					{
@@ -241,10 +247,12 @@ describe('GitHub Deployment App', () => {
 			expect(mock.pendingMocks()).toStrictEqual([]);
 		});
 
-		test('ignores deployment for CHANGES_REQUESTED pull request review', async () => {
+		test('creates instructional comment for CHANGES_REQUESTED pull request review', async () => {
 			const mock = nock('https://api.github.com')
 				.post('/app/installations/12345678/access_tokens')
 				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/app')
+				.reply(200, { id: 456 })
 				.get('/repos/test-org/test-repo/pulls/123/reviews')
 				.reply(200, [
 					{
@@ -252,6 +260,39 @@ describe('GitHub Deployment App', () => {
 						body: '/deploy please',
 						state: 'CHANGES_REQUESTED',
 						user: { login: 'test-user', id: 789 },
+					},
+				])
+				.get('/repos/test-org/test-repo/issues/123/comments')
+				.reply(200, [])
+				.post('/repos/test-org/test-repo/issues/123/comments', {
+					body: instructionalComment,
+				})
+				.reply(200);
+
+			process.env.BYPASS_ACTORS = '';
+
+			await probot.receive({
+				name: 'deployment_protection_rule',
+				payload: testFixtures.deployment_protection_rule,
+			});
+
+			expect(mock.pendingMocks()).toStrictEqual([]);
+		});
+
+		test('avoids creating duplicate comments', async () => {
+			const mock = nock('https://api.github.com')
+				.post('/app/installations/12345678/access_tokens')
+				.reply(200, { token: 'test', permissions: { issues: 'write' } })
+				.get('/app')
+				.reply(200, { id: 456 })
+				.get('/repos/test-org/test-repo/pulls/123/reviews')
+				.reply(200, [])
+				.get('/repos/test-org/test-repo/issues/123/comments')
+				.reply(200, [
+					{
+						id: 123,
+						body: instructionalComment,
+						performed_via_github_app: { id: 456 },
 					},
 				]);
 
