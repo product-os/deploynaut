@@ -8,6 +8,7 @@ import * as GitHubClient from './client.js';
 export default (app: Probot) => {
 	app.on('deployment_protection_rule.requested', async (context: Context) => {
 		const {
+			action,
 			event,
 			environment,
 			deployment,
@@ -15,32 +16,48 @@ export default (app: Probot) => {
 			pull_requests: pullRequests,
 		} = context.payload as DeploymentProtectionRuleRequestedEvent;
 
-		if (
-			!deployment ||
-			!event ||
-			!environment ||
-			!callbackUrl ||
-			!pullRequests
-		) {
-			context.log.error('Deployment protection rule not found');
+		const eventDetails = {
+			action,
+			environment,
+			event,
+			deployment: {
+				id: deployment?.id,
+				creator: {
+					id: deployment?.creator.id,
+					login: deployment?.creator.login,
+				},
+				ref: deployment?.ref,
+				sha: deployment?.sha,
+			},
+		};
+
+		context.log.info(
+			'Received deployment protection rule event: %s',
+			JSON.stringify(eventDetails, null, 2),
+		);
+
+		if (!deployment || !event || !environment || !callbackUrl) {
+			context.log.error('Payload is missing required properties');
 			return;
 		}
 
-		app.log.info('Received event: deployment_protection_rule.requested');
+		// app.log.info('Received Deployment Protection Rule with Deployment ID: %s', deployment.id);
 		// app.log.info(JSON.stringify(context.payload, null, 2));
-
-		if (!['pull_request', 'pull_request_target'].includes(event)) {
-			context.log.info('Ignoring non-pull request event');
-			return;
-		}
 
 		// const client = await app.auth(); // Gets an authenticated Octokit client
 		// const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
 		// // app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
 
+		if (!['pull_request', 'pull_request_target', 'push'].includes(event)) {
+			context.log.info(
+				'Ignoring unsupported deployment protection rule event: %s',
+				event,
+			);
+			return;
+		}
+
 		const bypassActors = process.env.BYPASS_ACTORS?.split(',') ?? [];
 		if (bypassActors.includes(deployment.creator.id.toString())) {
-			// context.log.info('Approving deployment %s', deployment.id);
 			return context.octokit.request(`POST ${callbackUrl}`, {
 				environment_name: environment,
 				state: 'approved',
@@ -48,41 +65,57 @@ export default (app: Probot) => {
 			});
 		}
 
-		for (const pull of pullRequests) {
-			// get all reviews for the pull request
-			const reviews = await GitHubClient.listPullRequestReviews(
-				context,
-				pull.number,
-			);
+		context.log.debug(
+			'Actor is not included in bypass actors: %s',
+			deployment.creator.login,
+		);
 
-			// find the first review that is not a changes requested review and has the same sha as the deployment
-			const deployReview = reviews.find(
-				(review) =>
-					review.state !== 'CHANGES_REQUESTED' &&
-					review.commit_id === deployment.sha &&
-					review.body.startsWith('/deploy'),
-			);
+		if (pullRequests) {
+			for (const pull of pullRequests) {
+				// get all reviews for the pull request
+				const reviews = await GitHubClient.listPullRequestReviews(
+					context,
+					pull.number,
+				);
 
-			if (deployReview) {
-				return context.octokit.request(`POST ${callbackUrl}`, {
-					environment_name: environment,
-					state: 'approved',
-					comment: `Approved by ${deployReview.user.login} via review [comment](${deployReview.html_url})`,
-				});
+				// find the first review that is not a changes requested review and has the same sha as the deployment
+				const deployReview = reviews.find(
+					(review) =>
+						review.state !== 'CHANGES_REQUESTED' &&
+						review.commit_id === deployment.sha &&
+						review.body.startsWith('/deploy'),
+				);
+
+				if (deployReview) {
+					return context.octokit.request(`POST ${callbackUrl}`, {
+						environment_name: environment,
+						state: 'approved',
+						comment: `Approved by ${deployReview.user.login} via [review](${deployReview.html_url})`,
+					});
+				}
 			}
 		}
 	});
 
 	app.on('pull_request_review.submitted', async (context: Context) => {
-		const {
-			review,
-			pull_request: {
-				head: { sha },
-			},
-		} = context.payload as PullRequestReviewSubmittedEvent;
+		const { review } = context.payload as PullRequestReviewSubmittedEvent;
 
-		app.log.info('Received event: pull_request_review.submitted');
-		// app.log.info(JSON.stringify(context.payload, null, 2));
+		const eventDetails = {
+			review: {
+				id: review.id,
+				body: review.body,
+				commit_id: review.commit_id,
+				user: {
+					id: review.user.id,
+					login: review.user.login,
+				},
+			},
+		};
+
+		context.log.info(
+			'Received pull request review event: %s',
+			JSON.stringify(eventDetails, null, 2),
+		);
 
 		if (review.user.type === 'Bot') {
 			context.log.info('Ignoring bot review');
@@ -90,7 +123,7 @@ export default (app: Probot) => {
 		}
 
 		if (!review.body?.startsWith('/deploy')) {
-			context.log.info('Ignoring non-deploy comment');
+			context.log.info('Ignoring unsupported comment');
 			return;
 		}
 
@@ -98,9 +131,7 @@ export default (app: Probot) => {
 		// const { data: appDetails } = await client.apps.getAuthenticated(); // Retrieves details about the authenticated app
 		// // app.log.info(JSON.stringify(appDetails, null, 2)); // Logs details about the app
 
-		// let approved = false;
-
-		const runs = await GitHubClient.listWorkflowRuns(context, sha);
+		const runs = await GitHubClient.listWorkflowRuns(context, review.commit_id);
 
 		for (const run of runs) {
 			const deployments = await GitHubClient.listPendingDeployments(
@@ -122,37 +153,15 @@ export default (app: Probot) => {
 				.map((deployment) => deployment.environment.name);
 
 			for (const environment of environments) {
-				context.log.info(
-					'Reviewing deployment with run %s and environment %s',
-					run.id,
-					environment,
-				);
 				await GitHubClient.reviewWorkflowRun(
 					context,
 					run.id,
 					environment,
 					'approved',
-					`Approved by ${review.user.login} via review [comment](${review.html_url})`,
+					`Approved by ${review.user.login} via [review](${review.html_url})`,
 				);
-				// approved = true;
 			}
 		}
-
-		// if (approved) {
-		// 	// post a reaction to the comment with :rocket:
-		// 	await GitHubClient.addPullRequestReviewCommentReaction(
-		// 		context,
-		// 		review.id,
-		// 		'rocket',
-		// 	);
-		// } else {
-		// 	// post a reaction to the comment with :confused:
-		// 	await GitHubClient.addPullRequestReviewCommentReaction(
-		// 		context,
-		// 		review.id,
-		// 		'confused',
-		// 	);
-		// }
 	});
 	// For more information on building apps:
 	// https://probot.github.io/docs/

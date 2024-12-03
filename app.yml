@@ -128,13 +128,13 @@ default_permissions:
   # https://developer.github.com/v3/apps/permissions/
   # organization_administration: read
 # The name of the GitHub App. Defaults to the name specified in package.json
-name: Deployable
+name: deploynaut
 
 # The homepage of your GitHub App.
-url: https://github.com/balena-io-experimental/deployable
+url: https://github.com/product-os/deploynaut
 
 # A description of the GitHub App.
-description: Approve deployments via comments from maintainers
+description: Approve deployments via reviews from maintainers
 
 # Set to true when your GitHub App is available to the public or false when it is only accessible to the owner of the app.
 # Default: true
