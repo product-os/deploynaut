@@ -1,11 +1,11 @@
 {
-  "name": "deployable",
+  "name": "deploynaut",
   "version": "0.0.3",
   "private": true,
-  "description": "Approve deployments via comments from maintainers",
+  "description": "Approve deployments via reviews from maintainers",
   "author": "Balena",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/balena-io-experimental/deployable",
+  "homepage": "https://github.com/product-os/deploynaut",
   "keywords": [
     "probot",
     "github",

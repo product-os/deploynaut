@@ -37,14 +37,10 @@ const testFixtures = {
 	},
 	pull_request_review: {
 		action: 'submitted',
-		pull_request: {
-			head: {
-				sha: 'test-sha',
-			},
-		},
 		review: {
 			id: 456,
 			body: '/deploy please',
+			commit_id: 'test-sha',
 			user: {
 				login: 'test-user',
 				id: 789,
@@ -116,10 +112,10 @@ describe('GitHub Deployment App', () => {
 			expect(nock.pendingMocks()).toStrictEqual([]);
 		});
 
-		test('ignores non-pull-request events', async () => {
+		test('ignores unsupported events', async () => {
 			const payload = {
 				...testFixtures.deployment_protection_rule,
-				event: 'push',
+				event: 'workflow_run',
 			};
 
 			const result = await probot.receive({

@@ -1,6 +1,6 @@
-# Deployable
+# deploynaut
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) to Approve deployments via comments from maintainers
+A GitHub App built with [Probot](https://github.com/probot/probot) to approve deployments via reviews from maintainers
 
 ## Setup
 
@@ -16,15 +16,15 @@ npm start
 
 ```sh
 # 1. Build container
-docker build -t deployable .
+docker build -t deploynaut .
 
 # 2. Start container
-docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> deployable
+docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> deploynaut
 ```
 
 ## Contributing
 
-If you have suggestions for how Deployable could be improved, or want to report a bug, open an issue! We'd love all and any contributions.
+If you have suggestions for how deploynaut could be improved, or want to report a bug, open an issue! We'd love all and any contributions.
 
 For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
