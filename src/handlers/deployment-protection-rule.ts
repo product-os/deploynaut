@@ -74,10 +74,17 @@ export async function handleDeploymentProtectionRule(
 				pull.number,
 			);
 
+			const commits = await GitHubClient.listPullRequestCommits(
+				context,
+				pull.number,
+			);
+
 			const deployReview = reviews.find(
 				(review) =>
 					review.state !== 'CHANGES_REQUESTED' &&
 					review.commit_id === deployment.sha &&
+					review.user.id !== deployment.creator.id &&
+					!commits.map((c: any) => c.author.id).includes(review.user.id) &&
 					review.body.startsWith('/deploy'),
 			);
 

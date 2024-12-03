@@ -23,6 +23,10 @@ const testFixtures = {
 				id: 789,
 			},
 		},
+		pull_request: {
+			// eslint-disable-next-line id-denylist
+			number: 2,
+		},
 		installation: { id: 12345678 },
 		repository: {
 			owner: {
@@ -58,6 +62,8 @@ describe('Pull Request Review Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/pulls/2/commits')
+			.reply(200, [{ author: { id: 123 } }])
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
 			.reply(200, { workflow_runs: [{ id: 1234 }] })
@@ -78,7 +84,7 @@ describe('Pull Request Review Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('ignores non-deploy comments', async () => {
+	test('ignores unsupported comments', async () => {
 		const payload = {
 			...testFixtures.pull_request_review,
 			review: {
@@ -95,7 +101,7 @@ describe('Pull Request Review Handler', () => {
 		expect(nock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('ignores bot comments', async () => {
+	test('ignores reviews by Bots', async () => {
 		const payload = {
 			...testFixtures.pull_request_review,
 			review: {
@@ -115,10 +121,38 @@ describe('Pull Request Review Handler', () => {
 		expect(nock.pendingMocks()).toStrictEqual([]);
 	});
 
+	test('ignores review by commit authors', async () => {
+		const payload = {
+			...testFixtures.pull_request_review,
+			review: {
+				...testFixtures.pull_request_review.review,
+				user: {
+					...testFixtures.pull_request_review.review.user,
+					id: 123,
+				},
+			},
+		};
+
+		const mock = nock('https://api.github.com')
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/pulls/2/commits')
+			.reply(200, [{ author: { id: 123 } }]);
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
 	test('exits early if no matching workflow runs', async () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/pulls/2/commits')
+			.reply(200, [{ author: { id: 123 } }])
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
 			.reply(200, { workflow_runs: [] });
@@ -135,6 +169,8 @@ describe('Pull Request Review Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/pulls/2/commits')
+			.reply(200, [{ author: { id: 123 } }])
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
 			.reply(200, { workflow_runs: [{ id: 1234 }] })
@@ -153,6 +189,8 @@ describe('Pull Request Review Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/pulls/2/commits')
+			.reply(200, [{ author: { id: 123 } }])
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
 			.reply(200, { workflow_runs: [{ id: 1234 }] })

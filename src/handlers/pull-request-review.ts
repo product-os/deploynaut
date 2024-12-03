@@ -3,7 +3,8 @@ import type { PullRequestReviewSubmittedEvent } from '@octokit/webhooks-types';
 import * as GitHubClient from '../client.js';
 
 export async function handlePullRequestReview(context: Context) {
-	const { review } = context.payload as PullRequestReviewSubmittedEvent;
+	const { review, pull_request } =
+		context.payload as PullRequestReviewSubmittedEvent;
 
 	const eventDetails = {
 		review: {
@@ -15,6 +16,10 @@ export async function handlePullRequestReview(context: Context) {
 				login: review.user.login,
 			},
 		},
+		pull_request: {
+			// eslint-disable-next-line id-denylist
+			number: pull_request.number,
+		},
 	};
 
 	context.log.info(
@@ -22,17 +27,27 @@ export async function handlePullRequestReview(context: Context) {
 		JSON.stringify(eventDetails, null, 2),
 	);
 
-	if (review.user.type === 'Bot') {
-		context.log.info('Ignoring bot review');
-		return;
-	}
-
 	if (!review.body?.startsWith('/deploy')) {
-		context.log.info('Ignoring unsupported comment');
+		context.log.debug('Ignoring unsupported comment');
 		return;
 	}
 
-	const runs = await GitHubClient.listWorkflowRuns(context, review.commit_id);
+	if (review.user.type === 'Bot') {
+		context.log.debug('Ignoring review by Bot: %s', review.user.login);
+		return;
+	}
+
+	const commits = await GitHubClient.listPullRequestCommits(
+		context,
+		pull_request.number,
+	);
+
+	if (commits.map((c: any) => c.author.id).includes(review.user.id)) {
+		context.log.info('Ignoring review by commit author: %s', review.user.login);
+		return;
+	}
+
+	const runs = await GitHubClient.listWorkflowRuns(context, commits[0].sha);
 
 	for (const run of runs) {
 		const deployments = await GitHubClient.listPendingDeployments(

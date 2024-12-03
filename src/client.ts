@@ -77,20 +77,22 @@
 // 	return commits.map((c: any) => c.author.id);
 // }
 
-// export async function listPullRequestCommits(
-// 	context: any,
-// 	prNumber: number,
-// ): Promise<any[]> {
-// 	const request = context.repo({
-// 		pull_number: prNumber,
-// 	});
-// 	const { data: commits } =
-// 		await context.octokit.rest.pulls.listPullRequestCommits(request);
-// 	return commits;
-// }
+// https://octokit.github.io/rest.js/v21/#pulls-list-commits
+// https://docs.github.com/en/rest/pulls/pulls#list-commits-on-a-pull-request
+export async function listPullRequestCommits(
+	context: any,
+	prNumber: number,
+): Promise<any[]> {
+	const request = context.repo({
+		pull_number: prNumber,
+	});
+	const { data: commits } =
+		await context.octokit.rest.pulls.listCommits(request);
+	return commits;
+}
 
 // https://octokit.github.io/rest.js/v21/#pulls-list-reviews
-// https://docs.github.com/en/rest/pulls/reviews?apiVersion=2022-11-28#list-reviews-for-a-pull-request
+// https://docs.github.com/en/rest/pulls/reviews#list-reviews-for-a-pull-request
 export async function listPullRequestReviews(
 	context: any,
 	prNumber: number,
@@ -122,7 +124,7 @@ export async function listWorkflowRuns(
 }
 
 // https://octokit.github.io/rest.js/v21/#actions-get-pending-deployments-for-run
-// https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#get-pending-deployments-for-a-workflow-run
+// https://docs.github.com/en/rest/actions/workflow-runs#get-pending-deployments-for-a-workflow-run
 export async function listPendingDeployments(
 	context: any,
 	runId: number,
