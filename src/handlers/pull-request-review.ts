@@ -3,8 +3,7 @@ import type { PullRequestReviewSubmittedEvent } from '@octokit/webhooks-types';
 import * as GitHubClient from '../client.js';
 
 export async function handlePullRequestReview(context: Context) {
-	const { review, pull_request } =
-		context.payload as PullRequestReviewSubmittedEvent;
+	const { review } = context.payload as PullRequestReviewSubmittedEvent;
 
 	const eventDetails = {
 		review: {
@@ -15,10 +14,6 @@ export async function handlePullRequestReview(context: Context) {
 				id: review.user.id,
 				login: review.user.login,
 			},
-		},
-		pull_request: {
-			// eslint-disable-next-line id-denylist
-			number: pull_request.number,
 		},
 	};
 
@@ -37,17 +32,7 @@ export async function handlePullRequestReview(context: Context) {
 		return;
 	}
 
-	const commits = await GitHubClient.listPullRequestCommits(
-		context,
-		pull_request.number,
-	);
-
-	if (commits.map((c: any) => c.author.id).includes(review.user.id)) {
-		context.log.info('Ignoring review by commit author: %s', review.user.login);
-		return;
-	}
-
-	const runs = await GitHubClient.listWorkflowRuns(context, commits[0].sha);
+	const runs = await GitHubClient.listWorkflowRuns(context, review.commit_id);
 
 	for (const run of runs) {
 		const deployments = await GitHubClient.listPendingDeployments(
@@ -65,6 +50,7 @@ export async function handlePullRequestReview(context: Context) {
 
 		const environments = deployments
 			.filter((deployment) => deployment.current_user_can_approve)
+			.filter((deployment) => deployment.creator.id !== review.user.id)
 			.map((deployment) => deployment.environment.name);
 
 		for (const environment of environments) {

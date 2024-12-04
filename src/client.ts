@@ -69,27 +69,19 @@
 //   return deployments;
 // }
 
-// export async function listPullRequestContributors(
+// // https://octokit.github.io/rest.js/v21/#pulls-list-commits
+// // https://docs.github.com/en/rest/pulls/pulls#list-commits-on-a-pull-request
+// export async function listPullRequestCommits(
 // 	context: any,
 // 	prNumber: number,
-// ): Promise<string[]> {
-// 	const commits = await this.listPullRequestCommits(context, prNumber);
-// 	return commits.map((c: any) => c.author.id);
+// ): Promise<any[]> {
+// 	const request = context.repo({
+// 		pull_number: prNumber,
+// 	});
+// 	const { data: commits } =
+// 		await context.octokit.rest.pulls.listCommits(request);
+// 	return commits;
 // }
-
-// https://octokit.github.io/rest.js/v21/#pulls-list-commits
-// https://docs.github.com/en/rest/pulls/pulls#list-commits-on-a-pull-request
-export async function listPullRequestCommits(
-	context: any,
-	prNumber: number,
-): Promise<any[]> {
-	const request = context.repo({
-		pull_number: prNumber,
-	});
-	const { data: commits } =
-		await context.octokit.rest.pulls.listCommits(request);
-	return commits;
-}
 
 // https://octokit.github.io/rest.js/v21/#pulls-list-reviews
 // https://docs.github.com/en/rest/pulls/reviews#list-reviews-for-a-pull-request

@@ -117,8 +117,6 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, { id: 456 })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [])
-			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [{ author: { id: 123 } }])
 			.get('/repos/test-org/test-repo/issues/123/comments')
 			.reply(200, [])
 			.post('/repos/test-org/test-repo/issues/123/comments', {
@@ -144,8 +142,6 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, { id: 456 })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [])
-			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [{ author: { id: 123 } }])
 			.get('/repos/test-org/test-repo/issues/123/comments')
 			.reply(200, [])
 			.post('/repos/test-org/test-repo/issues/123/comments', {
@@ -195,8 +191,6 @@ describe('Deployment Protection Rule Handler', () => {
 					user: { login: 'test-user', id: 789 },
 				},
 			])
-			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [{ author: { id: 123 } }])
 			.post(
 				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
 			)
@@ -227,8 +221,6 @@ describe('Deployment Protection Rule Handler', () => {
 					user: { login: 'test-user', id: 789 },
 				},
 			])
-			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [{ author: { id: 123 } }])
 			.post(
 				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
 			)
@@ -244,7 +236,7 @@ describe('Deployment Protection Rule Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('ignores reviews by commit authors', async () => {
+	test('ignores reviews by deployment creator', async () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
@@ -256,11 +248,9 @@ describe('Deployment Protection Rule Handler', () => {
 					commit_id: 'test-sha',
 					body: '/deploy please',
 					state: 'COMMENTED',
-					user: { login: 'test-user', id: 789 },
+					user: { login: 'test-user', id: 5 },
 				},
 			])
-			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [{ author: { id: 789 } }])
 			.get('/repos/test-org/test-repo/issues/123/comments')
 			.reply(200, [])
 			.post('/repos/test-org/test-repo/issues/123/comments', {
@@ -293,8 +283,6 @@ describe('Deployment Protection Rule Handler', () => {
 					user: { login: 'test-user', id: 789 },
 				},
 			])
-			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [{ author: { id: 123 } }])
 			.get('/repos/test-org/test-repo/issues/123/comments')
 			.reply(200, [])
 			.post('/repos/test-org/test-repo/issues/123/comments', {
@@ -320,8 +308,6 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, { id: 456 })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [])
-			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [{ author: { id: 123 } }])
 			.get('/repos/test-org/test-repo/issues/123/comments')
 			.reply(200, [
 				{
