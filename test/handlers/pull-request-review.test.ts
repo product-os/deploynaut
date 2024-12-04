@@ -22,6 +22,7 @@ const testFixtures = {
 				login: 'test-user',
 				id: 789,
 			},
+			html_url: 'https://github.com/test-org/test-repo/pull/123/reviews/456',
 		},
 		installation: { id: 12345678 },
 		repository: {
@@ -60,12 +61,11 @@ describe('Pull Request Review Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
-			.reply(200, { workflow_runs: [{ id: 1234 }] })
+			.reply(200, { workflow_runs: [{ id: 1234, actor: { id: 123 } }] })
 			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
 			.reply(200, [
 				{
 					environment: { name: 'test' },
-					creator: { id: 123 },
 					current_user_can_approve: true,
 				},
 			])
@@ -119,7 +119,7 @@ describe('Pull Request Review Handler', () => {
 		expect(nock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('ignores review by deployment creator', async () => {
+	test('ignores review by workflow run actor', async () => {
 		const payload = {
 			...testFixtures.pull_request_review,
 			review: {
@@ -136,15 +136,7 @@ describe('Pull Request Review Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
-			.reply(200, { workflow_runs: [{ id: 1234 }] })
-			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
-			.reply(200, [
-				{
-					environment: { name: 'test' },
-					creator: { id: 123 },
-					current_user_can_approve: true,
-				},
-			]);
+			.reply(200, { workflow_runs: [{ id: 1234, actor: { id: 123 } }] });
 
 		await probot.receive({
 			name: 'pull_request_review',
@@ -176,7 +168,7 @@ describe('Pull Request Review Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
-			.reply(200, { workflow_runs: [{ id: 1234 }] })
+			.reply(200, { workflow_runs: [{ id: 1234, actor: { id: 123 } }] })
 			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
 			.reply(200, []);
 
@@ -194,7 +186,7 @@ describe('Pull Request Review Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
-			.reply(200, { workflow_runs: [{ id: 1234 }] })
+			.reply(200, { workflow_runs: [{ id: 1234, actor: { id: 123 } }] })
 			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
 			.reply(200, [
 				{ environment: { name: 'test' }, current_user_can_approve: false },

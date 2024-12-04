@@ -1,5 +1,8 @@
 import type { Context } from 'probot';
-import type { PullRequestReviewSubmittedEvent } from '@octokit/webhooks-types';
+import type {
+	PullRequestReviewSubmittedEvent,
+	WorkflowRun,
+} from '@octokit/webhooks-types';
 import * as GitHubClient from '../client.js';
 
 export async function handlePullRequestReview(context: Context) {
@@ -32,35 +35,44 @@ export async function handlePullRequestReview(context: Context) {
 		return;
 	}
 
-	const runs = await GitHubClient.listWorkflowRuns(context, review.commit_id);
+	const workflowRuns = await GitHubClient.listWorkflowRuns(
+		context,
+		review.commit_id,
+	);
 
-	for (const run of runs) {
-		const deployments = await GitHubClient.listPendingDeployments(
-			context,
-			run.id,
-		);
+	await Promise.all(
+		workflowRuns
+			.filter((workflowRun) => workflowRun.actor.id !== review.user.id)
+			.map(async (workflowRun: WorkflowRun) => {
+				const pendingDeployments = await GitHubClient.listPendingDeployments(
+					context,
+					workflowRun.id,
+				);
 
-		if (deployments.length === 0) {
-			context.log.info(
-				'No pending deployments found for workflow run %s',
-				run.id,
-			);
-			continue;
-		}
+				if (pendingDeployments.length === 0) {
+					context.log.info(
+						'No pending deployments found for workflow run %s',
+						workflowRun.id,
+					);
+					return;
+				}
 
-		const environments = deployments
-			.filter((deployment) => deployment.current_user_can_approve)
-			.filter((deployment) => deployment.creator.id !== review.user.id)
-			.map((deployment) => deployment.environment.name);
+				const environmentNames = pendingDeployments
+					.filter((deployment) => deployment.current_user_can_approve)
+					.filter((deployment) => deployment.environment.name !== undefined)
+					.map((deployment) => deployment.environment.name!);
 
-		for (const environment of environments) {
-			await GitHubClient.reviewWorkflowRun(
-				context,
-				run.id,
-				environment,
-				'approved',
-				`Approved by ${review.user.login} via [review](${review.html_url})`,
-			);
-		}
-	}
+				await Promise.all(
+					environmentNames.map((environmentName) =>
+						GitHubClient.reviewWorkflowRun(
+							context,
+							workflowRun.id,
+							environmentName,
+							'approved',
+							`Approved by ${review.user.login} via [review](${review.html_url})`,
+						),
+					),
+				);
+			}),
+	);
 }

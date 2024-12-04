@@ -4,7 +4,7 @@ import * as GitHubClient from '../client.js';
 
 export const instructionalComment =
 	'One or more environments require approval before deploying workflow runs.\n\n' +
-	'Maintainers can approve by submitting a [Review](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/reviewing-proposed-changes-in-a-pull-request#submitting-your-review) with the comment `/deploy`.\n\n' +
+	'Maintainers can approve by submitting a [Review](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/reviewing-proposed-changes-in-a-pull-request#submitting-your-review) with `/deploy` in the body.\n\n' +
 	'Reviews are tied to the commit SHA, so a new push will require a new review.\n\n' +
 	'Please review changes carefully for improper handling of secrets or other sensitive information.';
 
@@ -78,10 +78,10 @@ export async function handleDeploymentProtectionRule(
 
 			const deployReview = reviews.find(
 				(review) =>
-					review.state !== 'CHANGES_REQUESTED' &&
+					['approved', 'commented'].includes(review.state) &&
 					review.commit_id === deployment.sha &&
 					review.user.id !== deployment.creator.id &&
-					review.body.startsWith('/deploy'),
+					review.body?.startsWith('/deploy'),
 			);
 
 			if (deployReview) {
@@ -120,7 +120,7 @@ async function filterIssueComments(
 	return comments.filter(
 		(c) =>
 			c.body.startsWith(startsWith) &&
-			c.performed_via_github_app.id === appId &&
+			c.performed_via_github_app?.id === appId &&
 			c.created_at === c.updated_at,
 	);
 }
