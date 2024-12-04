@@ -3,8 +3,10 @@ import type { DeploymentProtectionRuleRequestedEvent } from '@octokit/webhooks-t
 import * as GitHubClient from '../client.js';
 
 export const instructionalComment =
-	'One or more environments associated with this pull request require approval before deploying workflow runs.\n\n' +
-	'Maintainers can approve by submitting a [Review](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/reviewing-proposed-changes-in-a-pull-request#submitting-your-review) with the comment `/deploy please`.';
+	'One or more environments require approval before deploying workflow runs.\n\n' +
+	'Maintainers can approve by submitting a [Review](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/reviewing-proposed-changes-in-a-pull-request#submitting-your-review) with the comment `/deploy`.\n\n' +
+	'Reviews are tied to the commit SHA, so a new push will require a new review.\n\n' +
+	'Please review changes carefully for improper handling of secrets or other sensitive information.';
 
 export async function handleDeploymentProtectionRule(
 	context: Context,
