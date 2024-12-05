@@ -1,14 +1,27 @@
 {
-	"extends": "./tsconfig.build",
 	"compilerOptions": {
-		"rootDir": "./",
-		"allowJs": true,
-		"checkJs": true
+		"module": "NodeNext",
+		"target": "es2022",
+		"declaration": true,
+		"outDir": "lib/",
+		"strict": true,
+		"strictPropertyInitialization": false,
+		"strictFunctionTypes": false,
+		"useUnknownInCatchVariables": false,
+		"noImplicitThis": false,
+		"noUnusedParameters": true,
+		"noUnusedLocals": true,
+		"preserveConstEnums": true,
+		"sourceMap": true,
+		"skipLibCheck": true,
+		"resolveJsonModule": true,
+		"esModuleInterop": true
 	},
-	"include": [
-		"src/**/*.ts",
-		"*.js",
-		"*.ts",
-		"test/**/*.ts"
-	]
+	"include": ["src/**/*.ts", "tests/**/*.ts"],
+	"ts-node": {
+		"esm": true,
+		"experimentalResolver": true,
+		"experimentalTsImportSpecifiers": true,
+		"transpileOnly": true
+	}
 }
