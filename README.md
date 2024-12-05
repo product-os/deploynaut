@@ -21,9 +21,9 @@ Deployments are approved by submitting a review with the `/deploy` command.
 
 Deployments are auto-approved if:
 
-- They originate from a previously approved commit SHA (including pull request merges).
+- They triggered by a previously approved commit SHA (including pull request merges).
 - They are initiated by an allowlisted user (e.g., Renovate) who is:
-  - The deployment creator.
+  - The author of the commit that triggered the deployment.
   - Listed in the `BYPASS_USERS` IDs.
 
 #### Manual Approval Process
@@ -38,7 +38,7 @@ For manual approvals:
 Reviewers must:
 
 - Have repository write access or higher.
-- Not be the deployment actor.
+- Not be the commit author or committer.
 - Not be a bot account.
 
 ### Security Measures
@@ -49,7 +49,7 @@ Key security features include:
 - Ensuring comment integrity (unmodified since creation).
 - Maintaining stateless operations.
 - Preventing TOCTOU attacks with atomic operations.
-- Requiring different actors for deployment and approval.
+- Requiring different actors for commit and approval.
 
 ### Example Workflow
 

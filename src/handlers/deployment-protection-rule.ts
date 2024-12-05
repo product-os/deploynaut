@@ -25,10 +25,6 @@ export async function handleDeploymentProtectionRule(
 		event,
 		deployment: {
 			id: deployment?.id,
-			creator: {
-				id: deployment?.creator.id,
-				login: deployment?.creator.login,
-			},
 			ref: deployment?.ref,
 			sha: deployment?.sha,
 		},
@@ -36,7 +32,7 @@ export async function handleDeploymentProtectionRule(
 
 	context.log.info(
 		'Received deployment protection rule event: %s',
-		JSON.stringify(eventDetails, null, 2),
+		JSON.stringify(eventDetails),
 	);
 
 	if (!deployment || !event || !environment || !callbackUrl) {
@@ -52,18 +48,22 @@ export async function handleDeploymentProtectionRule(
 		return;
 	}
 
+	// Get the commit that triggered the workflow run
+	const commit = await GitHubClient.getCommit(context, deployment.sha);
+
+	// Approve deployment if the commit author is in the bypass list
 	const bypassActors = process.env.BYPASS_ACTORS?.split(',') ?? [];
-	if (bypassActors.includes(deployment.creator.id.toString())) {
+	if (commit.author?.id && bypassActors.includes(commit.author.id.toString())) {
 		return context.octokit.request(`POST ${callbackUrl}`, {
 			environment_name: environment,
 			state: 'approved',
-			comment: `Approved via bypass actors list for ${deployment.creator.login}`,
+			comment: `Approved via bypass actors list for ${commit.author.login}`,
 		});
 	}
 
 	context.log.debug(
-		'Actor is not included in bypass actors: %s',
-		deployment.creator.login,
+		'Commit author is not included in bypass actors: %s',
+		commit.author?.login,
 	);
 
 	const client = await context.octokit.apps.getAuthenticated();
@@ -75,11 +75,13 @@ export async function handleDeploymentProtectionRule(
 				pull.number,
 			);
 
+			// Find an eligible review authored by a different user than the commit author or committer
 			const deployReview = reviews.find(
 				(review) =>
 					['approved', 'commented'].includes(review.state.toLowerCase()) &&
 					review.commit_id === deployment.sha &&
-					review.user.id !== deployment.creator.id &&
+					review.user.id !== commit.author?.id &&
+					review.user.id !== commit.committer?.id &&
 					review.body?.startsWith('/deploy'),
 			);
 

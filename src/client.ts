@@ -5,6 +5,7 @@ import type {
 } from '@octokit/webhooks-types';
 import type { components } from '@octokit/openapi-types';
 type PendingDeployment = components['schemas']['pending-deployment'];
+type Commit = components['schemas']['commit'];
 
 // // https://octokit.github.io/rest.js/v21/#repos-get-collaborator-permission-level
 // // https://docs.github.com/en/rest/collaborators/collaborators#list-repository-collaborators
@@ -84,6 +85,16 @@ type PendingDeployment = components['schemas']['pending-deployment'];
 // 		await context.octokit.rest.pulls.listCommits(request);
 // 	return commits;
 // }
+
+// https://octokit.github.io/rest.js/v21/#repos-get-commit
+// https://docs.github.com/en/rest/commits/commits#get-a-commit
+export async function getCommit(context: any, sha: string): Promise<Commit> {
+	const request = context.repo({
+		sha,
+	});
+	const { data: commit } = await context.octokit.rest.repos.getCommit(request);
+	return commit;
+}
 
 // https://octokit.github.io/rest.js/v21/#pulls-list-reviews
 // https://docs.github.com/en/rest/pulls/reviews#list-reviews-for-a-pull-request
