@@ -1,4 +1,14 @@
 - commits:
+    - subject: build ARM image(s)
+      hash: 873fe39b060b159b5dfd2e3614086706b10b085e
+      body: ""
+      footer:
+        change-type: patch
+      author: Anton Belodedenko
+  version: 0.0.7
+  title: ""
+  date: 2024-12-05T19:31:10.592Z
+- commits:
     - subject: Ignore reviews by deployment creators, not specifically authors
       hash: 2b1fa79d40e80c5fd51923e3dfa1e990da1ded4b
       body: |
