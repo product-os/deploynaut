@@ -1,9 +1,10 @@
-// export async function whoAmI(context: any): Promise<any> {
-// 	const query = `query { viewer { databaseId login } }`;
-// 	const { viewer } = await context.octokit.graphql(query);
-// 	console.log(`Authenticated as: ${viewer.login} (${viewer.databaseId})`);
-// 	return { login: viewer.login, id: viewer.databaseId };
-// }
+import type {
+	WorkflowRun,
+	PullRequestReview,
+	IssueComment,
+} from '@octokit/webhooks-types';
+import type { components } from '@octokit/openapi-types';
+type PendingDeployment = components['schemas']['pending-deployment'];
 
 // // https://octokit.github.io/rest.js/v21/#repos-get-collaborator-permission-level
 // // https://docs.github.com/en/rest/collaborators/collaborators#list-repository-collaborators
@@ -56,11 +57,12 @@
 // 	await context.octokit.reactions.createForPullRequestReviewComment(request);
 // }
 
-// https://docs.github.com/en/rest/deployments/deployments#list-deployments
+// // https://octokit.github.io/rest.js/v21/#repos-list-deployments
+// // https://docs.github.com/en/rest/deployments/deployments#list-deployments
 // export async function listDeployments(
 //   context: any,
 //   sha: string
-// ): Promise<any[]> {
+// ): Promise<Deployment[]> {
 //   const request = context.repo({
 //     sha,
 //   });
@@ -69,14 +71,8 @@
 //   return deployments;
 // }
 
-// export async function listPullRequestContributors(
-// 	context: any,
-// 	prNumber: number,
-// ): Promise<string[]> {
-// 	const commits = await this.listPullRequestCommits(context, prNumber);
-// 	return commits.map((c: any) => c.author.id);
-// }
-
+// // https://octokit.github.io/rest.js/v21/#pulls-list-commits
+// // https://docs.github.com/en/rest/pulls/pulls#list-commits-on-a-pull-request
 // export async function listPullRequestCommits(
 // 	context: any,
 // 	prNumber: number,
@@ -85,16 +81,16 @@
 // 		pull_number: prNumber,
 // 	});
 // 	const { data: commits } =
-// 		await context.octokit.rest.pulls.listPullRequestCommits(request);
+// 		await context.octokit.rest.pulls.listCommits(request);
 // 	return commits;
 // }
 
 // https://octokit.github.io/rest.js/v21/#pulls-list-reviews
-// https://docs.github.com/en/rest/pulls/reviews?apiVersion=2022-11-28#list-reviews-for-a-pull-request
+// https://docs.github.com/en/rest/pulls/reviews#list-reviews-for-a-pull-request
 export async function listPullRequestReviews(
 	context: any,
 	prNumber: number,
-): Promise<any[]> {
+): Promise<PullRequestReview[]> {
 	const request = context.repo({
 		pull_number: prNumber,
 	});
@@ -108,7 +104,7 @@ export async function listPullRequestReviews(
 export async function listWorkflowRuns(
 	context: any,
 	headSha: string,
-): Promise<any> {
+): Promise<WorkflowRun[]> {
 	// what is the status "requested" used for?
 	const request = context.repo({
 		status: 'waiting',
@@ -117,16 +113,15 @@ export async function listWorkflowRuns(
 	const {
 		data: { workflow_runs: runs },
 	} = await context.octokit.rest.actions.listWorkflowRunsForRepo(request);
-	// console.log(JSON.stringify(runs, null, 2))
 	return runs;
 }
 
 // https://octokit.github.io/rest.js/v21/#actions-get-pending-deployments-for-run
-// https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#get-pending-deployments-for-a-workflow-run
+// https://docs.github.com/en/rest/actions/workflow-runs#get-pending-deployments-for-a-workflow-run
 export async function listPendingDeployments(
 	context: any,
 	runId: number,
-): Promise<any[]> {
+): Promise<PendingDeployment[]> {
 	const request = context.repo({
 		run_id: runId,
 	});
@@ -136,6 +131,20 @@ export async function listPendingDeployments(
 	return deployments;
 }
 
+// // https://docs.github.com/en/rest/deployments/deployments#get-a-deployment
+// // https://octokit.github.io/rest.js/v21/#repos-get-deployment
+// export async function getDeployment(
+// 	context: any,
+// 	deploymentId: number,
+// ): Promise<Deployment> {
+// 	const request = context.repo({
+// 		deployment_id: deploymentId,
+// 	});
+// 	const { data: deployment } =
+// 		await context.octokit.rest.repos.getDeployment(request);
+// 	return deployment;
+// }
+
 // https://octokit.github.io/rest.js/v21/#actions-review-custom-gates-for-run
 // https://docs.github.com/en/rest/actions/workflow-runs#review-custom-deployment-protection-rules-for-a-workflow-run
 export async function reviewWorkflowRun(
@@ -144,7 +153,7 @@ export async function reviewWorkflowRun(
 	environment: string,
 	state: string,
 	comment: string,
-): Promise<any> {
+): Promise<void> {
 	const request = context.repo({
 		run_id: runId,
 		environment_name: environment,
@@ -152,9 +161,7 @@ export async function reviewWorkflowRun(
 		comment,
 	});
 
-	const { data: review } =
-		await context.octokit.rest.actions.reviewCustomGatesForRun(request);
-	return review;
+	await context.octokit.rest.actions.reviewCustomGatesForRun(request);
 }
 
 // https://octokit.github.io/rest.js/v18/#issues-list-comments
@@ -162,7 +169,7 @@ export async function reviewWorkflowRun(
 export async function listIssueComments(
 	context: any,
 	issueNumber: number,
-): Promise<any[]> {
+): Promise<IssueComment[]> {
 	const request = context.repo({
 		issue_number: issueNumber,
 	});
@@ -177,7 +184,7 @@ export async function createIssueComment(
 	context: any,
 	issueNumber: number,
 	body: string,
-): Promise<any> {
+): Promise<IssueComment> {
 	const request = context.repo({
 		issue_number: issueNumber,
 		body,
