@@ -176,7 +176,7 @@ describe('Deployment Protection Rule Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('approves deployment for approved pull request review', async () => {
+	test('approves deployment for APPROVED pull request review', async () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
@@ -187,7 +187,7 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					commit_id: 'test-sha',
 					body: '/deploy please',
-					state: 'approved',
+					state: 'APPROVED',
 					user: { login: 'test-user', id: 789 },
 				},
 			])
@@ -206,7 +206,7 @@ describe('Deployment Protection Rule Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('approves deployment for commented pull request review', async () => {
+	test('approves deployment for COMMENTED pull request review', async () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
@@ -217,7 +217,7 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					commit_id: 'test-sha',
 					body: '/deploy please',
-					state: 'commented',
+					state: 'COMMENTED',
 					user: { login: 'test-user', id: 789 },
 				},
 			])
@@ -268,7 +268,7 @@ describe('Deployment Protection Rule Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('creates instructional comment for changes_requested pull request review', async () => {
+	test('creates instructional comment for CHANGES_REQUESTED pull request review', async () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
@@ -279,7 +279,7 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					commit_id: 'test-sha',
 					body: '/deploy please',
-					state: 'changes_requested',
+					state: 'CHANGES_REQUESTED',
 					user: { login: 'test-user', id: 789 },
 				},
 			])

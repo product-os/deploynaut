@@ -25,6 +25,11 @@ export async function handlePullRequestReview(context: Context) {
 		JSON.stringify(eventDetails, null, 2),
 	);
 
+	if (!['approved', 'commented'].includes(review.state.toLowerCase())) {
+		context.log.debug('Ignoring unsupported review state: %s', review.state);
+		return;
+	}
+
 	if (!review.body?.startsWith('/deploy')) {
 		context.log.debug('Ignoring unsupported comment');
 		return;

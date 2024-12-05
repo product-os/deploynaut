@@ -18,6 +18,7 @@ const testFixtures = {
 			id: 456,
 			body: '/deploy please',
 			commit_id: 'test-sha',
+			state: 'COMMENTED',
 			user: {
 				login: 'test-user',
 				id: 789,
@@ -80,6 +81,21 @@ describe('Pull Request Review Handler', () => {
 		});
 
 		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('ignores unsupported review states', async () => {
+		const payload = {
+			...testFixtures.pull_request_review,
+			review: {
+				...testFixtures.pull_request_review.review,
+				state: 'CHANGES_REQUESTED',
+			},
+		};
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload,
+		});
 	});
 
 	test('ignores unsupported comments', async () => {
