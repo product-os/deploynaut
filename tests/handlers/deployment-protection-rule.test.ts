@@ -20,10 +20,6 @@ const testFixtures = {
 		deployment_callback_url:
 			'https://api.github.com/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
 		deployment: {
-			creator: {
-				login: 'bypass-actor',
-				id: 5,
-			},
 			sha: 'test-sha',
 		},
 		installation: { id: 12345678 },
@@ -60,10 +56,13 @@ describe('Deployment Protection Rule Handler', () => {
 		nock.enableNetConnect();
 	});
 
-	test('approves deployment created by bypass user', async () => {
+	test('approves deployment authored by bypass user', async () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 5 }, committer: { id: 123 } })
 			.post(
 				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
 			)
@@ -115,6 +114,9 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/app')
 			.reply(200, { id: 456 })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [])
 			.get('/repos/test-org/test-repo/issues/123/comments')
@@ -140,6 +142,9 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/app')
 			.reply(200, { id: 456 })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [])
 			.get('/repos/test-org/test-repo/issues/123/comments')
@@ -163,6 +168,9 @@ describe('Deployment Protection Rule Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 5 }, committer: { id: 123 } })
 			.post(
 				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
 			)
@@ -182,6 +190,9 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/app')
 			.reply(200, { id: 456 })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [
 				{
@@ -212,6 +223,9 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/app')
 			.reply(200, { id: 456 })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [
 				{
@@ -236,19 +250,57 @@ describe('Deployment Protection Rule Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('ignores reviews by deployment creator', async () => {
+	test('ignores reviews by commit author', async () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/app')
 			.reply(200, { id: 456 })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 123 }, committer: { id: 456 } })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [
 				{
 					commit_id: 'test-sha',
 					body: '/deploy please',
 					state: 'COMMENTED',
-					user: { login: 'test-user', id: 5 },
+					user: { login: 'test-user', id: 123 },
+				},
+			])
+			.get('/repos/test-org/test-repo/issues/123/comments')
+			.reply(200, [])
+			.post('/repos/test-org/test-repo/issues/123/comments', {
+				body: instructionalComment,
+			})
+			.reply(200);
+
+		process.env.BYPASS_ACTORS = '';
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload: testFixtures.deployment_protection_rule,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('ignores reviews by commit committer', async () => {
+		const mock = nock('https://api.github.com')
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/app')
+			.reply(200, { id: 456 })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 123 }, committer: { id: 456 } })
+			.get('/repos/test-org/test-repo/pulls/123/reviews')
+			.reply(200, [
+				{
+					commit_id: 'test-sha',
+					body: '/deploy please',
+					state: 'COMMENTED',
+					user: { login: 'test-user', id: 456 },
 				},
 			])
 			.get('/repos/test-org/test-repo/issues/123/comments')
@@ -274,6 +326,9 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/app')
 			.reply(200, { id: 456 })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [
 				{
@@ -306,6 +361,9 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
 			.get('/app')
 			.reply(200, { id: 456 })
+			.get('/repos/test-org/test-repo/commits')
+			.query(true)
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/pulls/123/reviews')
 			.reply(200, [])
 			.get('/repos/test-org/test-repo/issues/123/comments')

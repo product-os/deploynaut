@@ -11,4 +11,6 @@
 **/.editorconfig
 **/dist
 **/*.pem
+**/lib
+**/.github
 Dockerfile

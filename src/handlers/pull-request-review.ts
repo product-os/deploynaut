@@ -22,7 +22,7 @@ export async function handlePullRequestReview(context: Context) {
 
 	context.log.info(
 		'Received pull request review event: %s',
-		JSON.stringify(eventDetails, null, 2),
+		JSON.stringify(eventDetails),
 	);
 
 	if (!['approved', 'commented'].includes(review.state.toLowerCase())) {
@@ -40,44 +40,61 @@ export async function handlePullRequestReview(context: Context) {
 		return;
 	}
 
+	// Get the commit of the submitted review
+	const commit = await GitHubClient.getCommit(context, review.commit_id);
+
+	if (commit.author?.id === review.user.id) {
+		context.log.debug(
+			'Ignoring review by author of the commit: %s',
+			review.user.login,
+		);
+		return;
+	}
+
+	if (commit.committer?.id === review.user.id) {
+		context.log.debug(
+			'Ignoring review by committer of the commit: %s',
+			review.user.login,
+		);
+		return;
+	}
+
 	const workflowRuns = await GitHubClient.listWorkflowRuns(
 		context,
 		review.commit_id,
 	);
 
 	await Promise.all(
-		workflowRuns
-			.filter((workflowRun) => workflowRun.actor.id !== review.user.id)
-			.map(async (workflowRun: WorkflowRun) => {
-				const pendingDeployments = await GitHubClient.listPendingDeployments(
-					context,
+		workflowRuns.map(async (workflowRun: WorkflowRun) => {
+			const pendingDeployments = await GitHubClient.listPendingDeployments(
+				context,
+				workflowRun.id,
+			);
+
+			if (pendingDeployments.length === 0) {
+				context.log.info(
+					'No pending deployments found for workflow run %s',
 					workflowRun.id,
 				);
+				return;
+			}
 
-				if (pendingDeployments.length === 0) {
-					context.log.info(
-						'No pending deployments found for workflow run %s',
+			const environmentNames = pendingDeployments
+				.filter((deployment) => deployment.current_user_can_approve)
+				.filter((deployment) => deployment.environment.name !== undefined)
+				.map((deployment) => deployment.environment.name!);
+
+			await Promise.all(
+				environmentNames.map((environmentName) =>
+					GitHubClient.reviewWorkflowRun(
+						context,
 						workflowRun.id,
-					);
-					return;
-				}
-
-				const environmentNames = pendingDeployments
-					.filter((deployment) => deployment.current_user_can_approve)
-					.filter((deployment) => deployment.environment.name !== undefined)
-					.map((deployment) => deployment.environment.name!);
-
-				await Promise.all(
-					environmentNames.map((environmentName) =>
-						GitHubClient.reviewWorkflowRun(
-							context,
-							workflowRun.id,
-							environmentName,
-							'approved',
-							`Approved by ${review.user.login} via [review](${review.html_url})`,
-						),
+						environmentName,
+						'approved',
+						`Approved by ${review.user.login} via [review](${review.html_url})`,
 					),
-				);
-			}),
+				),
+			);
+		}),
 	);
 }
