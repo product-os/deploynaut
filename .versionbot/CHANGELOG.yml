@@ -1,4 +1,32 @@
 - commits:
+    - subject: Fixup tsconfig paths for docker runtime
+      hash: f0d71c94ee9569da263b602cc5f02b700eb01e3a
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+    - subject: Reject reviews by commit authors and/or committers
+      hash: 29ef261f1810a4704ba5ab21bb9aaa3b29aeae7c
+      body: |
+        Testing confirmed that the deployment creator property
+        will reflect whoever triggered the workflow, including performing
+        actions like merging a PR, and does not reflect the commit author.
+
+        Instead, compare review authors and bypass users against the author
+        of the commit that triggered the event.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.8
+  title: ""
+  date: 2024-12-05T21:12:37.664Z
+- commits:
     - subject: build ARM image(s)
       hash: 873fe39b060b159b5dfd2e3614086706b10b085e
       body: ""
