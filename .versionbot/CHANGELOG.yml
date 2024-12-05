@@ -1,4 +1,40 @@
 - commits:
+    - subject: Ignore reviews by deployment creators, not specifically authors
+      hash: 2b1fa79d40e80c5fd51923e3dfa1e990da1ded4b
+      body: |
+        Getting a list of commit authors is an async operation that
+        leaves a small window for a time-of-use attack.
+
+        Prefer to use data from the initial event context where possible
+        and avoid extra async calls to the GitHub API.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+    - subject: Reject reviews by commit authors
+      hash: 7ae7504e78f90c302a038a7585886a0213a4c6d8
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+    - subject: Organize event handlers into separate files
+      hash: c05d1306b373f21ffefa083a7ef8599eb19f11cd
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.6
+  title: ""
+  date: 2024-12-05T17:14:15.270Z
+- commits:
     - subject: Post instructional comments for pending deployments
       hash: 4086bbab92a8b50aaf8b1619abf110fb8d654088
       body: ""
