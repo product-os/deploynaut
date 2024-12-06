@@ -60,8 +60,7 @@ describe('Pull Request Review Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits')
-			.query(true)
+			.get('/repos/test-org/test-repo/commits/test-sha')
 			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
@@ -153,8 +152,7 @@ describe('Pull Request Review Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits')
-			.query(true)
+			.get('/repos/test-org/test-repo/commits/test-sha')
 			.reply(200, { author: { id: 123 }, committer: { id: 456 } });
 
 		await probot.receive({
@@ -180,8 +178,7 @@ describe('Pull Request Review Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits')
-			.query(true)
+			.get('/repos/test-org/test-repo/commits/test-sha')
 			.reply(200, { author: { id: 456 }, committer: { id: 123 } });
 
 		await probot.receive({
@@ -196,8 +193,7 @@ describe('Pull Request Review Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits')
-			.query(true)
+			.get('/repos/test-org/test-repo/commits/test-sha')
 			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
@@ -215,8 +211,7 @@ describe('Pull Request Review Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits')
-			.query(true)
+			.get('/repos/test-org/test-repo/commits/test-sha')
 			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
@@ -236,8 +231,7 @@ describe('Pull Request Review Handler', () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits')
-			.query(true)
+			.get('/repos/test-org/test-repo/commits/test-sha')
 			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
