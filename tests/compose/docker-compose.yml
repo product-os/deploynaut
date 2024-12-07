@@ -1,0 +1,20 @@
+# These tests use the live GitHub endpoints for API calls, only the events are fixtures.
+# So if GitHub is down, these tests will fail. Consider them to be integration tests.
+# It also requires that the .env file is populated with the values from an active GitHub app.
+# https://probot.github.io/docs/simulating-webhooks/
+
+services:
+  sut:
+    image: sut:latest
+    build: ../../
+    env_file:
+      - ../../.env
+    volumes:
+      - ../fixtures:/usr/src/app/fixtures:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -ex
+        node_modules/.bin/probot receive -e deployment_protection_rule -p fixtures/deployment_protection_rule.requested.json ./lib/index.js
+        node_modules/.bin/probot receive -e pull_request_review -p fixtures/pull_request_review.submitted.json ./lib/index.js

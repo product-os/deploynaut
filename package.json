@@ -18,6 +18,8 @@
     "test": "npm run lint && vitest --coverage",
     "lint": "balena-lint src tests && tsc --noEmit --project .",
     "lint-fix": "balena-lint --fix src tests",
+    "test:compose": "docker compose -f tests/compose/docker-compose.yml up sut --build",
+    "clean:compose": "docker compose -f tests/compose/docker-compose.yml down --volumes --remove-orphans",
     "prepare": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module"
   },
   "dependencies": {
