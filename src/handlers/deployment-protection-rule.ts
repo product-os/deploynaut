@@ -4,8 +4,8 @@ import * as GitHubClient from '../client.js';
 
 export const instructionalComment =
 	'One or more environments require approval before deploying workflow runs.\n\n' +
-	'Maintainers can approve by submitting a [Review](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/reviewing-proposed-changes-in-a-pull-request#submitting-your-review) of the current commit with `/deploy` in the body.\n\n' +
-	'Please review changes carefully for improper handling of secrets or other sensitive information.';
+	'Maintainers, please inspect changes carefully for improper handling of sensitive information and submit a review with the required string.\n\n' +
+	'> **Files changed -> Review changes -> Comment** -> `/deploy`';
 
 export async function handleDeploymentProtectionRule(
 	context: Context,
