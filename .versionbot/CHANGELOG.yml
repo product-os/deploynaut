@@ -1,4 +1,26 @@
 - commits:
+    - subject: Update probot configuration for production
+      hash: 44f11812736a36f2a13a84c1fdc2f7b03afe2fea
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+    - subject: Fix get commit function that was returning an array
+      hash: 4afa1faddae60809ba33c0e943e7d41ccba96d07
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.9
+  title: ""
+  date: 2024-12-08T17:37:19.129Z
+- commits:
     - subject: Fixup tsconfig paths for docker runtime
       hash: f0d71c94ee9569da263b602cc5f02b700eb01e3a
       body: ""
