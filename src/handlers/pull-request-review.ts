@@ -31,7 +31,12 @@ export async function handlePullRequestReview(context: Context) {
 		return;
 	}
 
-	if (!review.body?.startsWith('/deploy')) {
+	// Comment reviews need to start with /deploy
+	// Approved reviews do not need to match any string
+	if (
+		review.state.toLowerCase() === 'commented' &&
+		!review.body?.startsWith('/deploy')
+	) {
 		context.log.debug('Ignoring unsupported comment');
 		return;
 	}

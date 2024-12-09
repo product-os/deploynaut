@@ -192,7 +192,6 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, [
 				{
 					commit_id: 'test-sha',
-					body: '/deploy please',
 					state: 'APPROVED',
 					user: { login: 'test-user', id: 789 },
 				},
