@@ -1,4 +1,16 @@
 - commits:
+    - subject: Lock file maintenance
+      hash: ed6138c68da196f032300049c4cf1fe98e5d6eb5
+      body: |
+        Update 
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.0.10
+  title: ""
+  date: 2024-12-09T00:10:37.341Z
+- commits:
     - subject: Update probot configuration for production
       hash: 44f11812736a36f2a13a84c1fdc2f7b03afe2fea
       body: ""
