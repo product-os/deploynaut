@@ -1,4 +1,28 @@
 - commits:
+    - subject: Remove body match requirement from approved reviews
+      hash: 720c460639c4fa69249e40c94687c5642cf7cc8c
+      body: |
+        If the changes are approved for merge, there is no need to also provide
+        the /deploy string in the body.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+    - subject: Assert that author and committer are non-null
+      hash: 69ca4dc55768273316fa7bb99c9496b563ae1c1b
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.11
+  title: ""
+  date: 2024-12-09T15:13:14.327Z
+- commits:
     - subject: Lock file maintenance
       hash: ed6138c68da196f032300049c4cf1fe98e5d6eb5
       body: |
