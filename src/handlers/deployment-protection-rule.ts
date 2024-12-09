@@ -1,11 +1,12 @@
 import type { Context } from 'probot';
 import type { DeploymentProtectionRuleRequestedEvent } from '@octokit/webhooks-types';
 import * as GitHubClient from '../client.js';
+import assert from 'assert';
 
 export const instructionalComment =
 	'One or more environments require approval before deploying workflow runs.\n\n' +
-	'Maintainers, please inspect changes carefully for improper handling of sensitive information and submit a review with the required string.\n\n' +
-	'> **Files changed -> Review changes -> Comment** -> `/deploy`';
+	'Maintainers, please inspect changes carefully for improper handling of secrets or other sensitive information.\n\n' +
+	'To approve pending deployments, submit an approved review, or a commented review with `/deploy`.';
 
 export async function handleDeploymentProtectionRule(
 	context: Context,
@@ -51,9 +52,15 @@ export async function handleDeploymentProtectionRule(
 	// Get the commit that triggered the workflow run
 	const commit = await GitHubClient.getCommit(context, deployment.sha);
 
+	assert(commit.author, `Failed to get author for SHA: ${deployment.sha}`);
+	assert(
+		commit.committer,
+		`Failed to get committer for SHA: ${deployment.sha}`,
+	);
+
 	// Approve deployment if the commit author is in the bypass list
 	const bypassActors = process.env.BYPASS_ACTORS?.split(',') ?? [];
-	if (commit.author?.id && bypassActors.includes(commit.author.id.toString())) {
+	if (bypassActors.includes(commit.author.id.toString())) {
 		return context.octokit.request(`POST ${callbackUrl}`, {
 			environment_name: environment,
 			state: 'approved',
@@ -63,7 +70,7 @@ export async function handleDeploymentProtectionRule(
 
 	context.log.debug(
 		'Commit author is not included in bypass actors: %s',
-		commit.author?.login,
+		commit.author.login,
 	);
 
 	const client = await context.octokit.apps.getAuthenticated();
@@ -76,13 +83,16 @@ export async function handleDeploymentProtectionRule(
 			);
 
 			// Find an eligible review authored by a different user than the commit author or committer
+			// Comment reviews need to start with /deploy
+			// Approved reviews do not need to match any string
 			const deployReview = reviews.find(
 				(review) =>
-					['approved', 'commented'].includes(review.state.toLowerCase()) &&
 					review.commit_id === deployment.sha &&
 					review.user.id !== commit.author?.id &&
 					review.user.id !== commit.committer?.id &&
-					review.body?.startsWith('/deploy'),
+					(review.state.toLowerCase() === 'approved' ||
+						(review.state.toLowerCase() === 'commented' &&
+							review.body?.startsWith('/deploy'))),
 			);
 
 			if (deployReview) {

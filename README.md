@@ -10,7 +10,7 @@ Deploynaut functions as a GitHub App, managing deployment approvals via [custom 
 
 ### Approval Process
 
-Deployments are approved by submitting a review with the `/deploy` command.
+Deployments are approved by submitting an approved review, or a `/deploy` command in a commented review.
 
 #### Deployment Validation
 
@@ -30,7 +30,9 @@ Deployments are auto-approved if:
 
 For manual approvals:
 
-- An eligible reviewer submits a [review](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/reviewing-proposed-changes-in-a-pull-request#submitting-your-review) with the `/deploy` command.
+- An eligible reviewer submits a [review](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/reviewing-proposed-changes-in-a-pull-request#submitting-your-review).
+  - Commented reviews need to start with `/deploy`.
+  - Approved reviews do not need to match any string.
 - The app approves pending deployments matching the reviewed commit SHA.
 
 #### Eligible Reviewers
@@ -56,7 +58,7 @@ Key security features include:
 1. Developer opens a PR and triggers a deployment.
 2. App receives a deployment protection rule event.
 3. If not auto-approved, the app comments on the PR with instructions.
-4. Eligible reviewer submits a review with `/deploy`.
+4. Eligible reviewer submits a commentedreview with `/deploy`.
 5. App validates the approval and enables deployment.
 
 ## Setup

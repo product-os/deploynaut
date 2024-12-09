@@ -4,6 +4,7 @@ import type {
 	WorkflowRun,
 } from '@octokit/webhooks-types';
 import * as GitHubClient from '../client.js';
+import assert from 'assert';
 
 export async function handlePullRequestReview(context: Context) {
 	const { review } = context.payload as PullRequestReviewSubmittedEvent;
@@ -30,7 +31,12 @@ export async function handlePullRequestReview(context: Context) {
 		return;
 	}
 
-	if (!review.body?.startsWith('/deploy')) {
+	// Comment reviews need to start with /deploy
+	// Approved reviews do not need to match any string
+	if (
+		review.state.toLowerCase() === 'commented' &&
+		!review.body?.startsWith('/deploy')
+	) {
 		context.log.debug('Ignoring unsupported comment');
 		return;
 	}
@@ -43,7 +49,13 @@ export async function handlePullRequestReview(context: Context) {
 	// Get the commit of the submitted review
 	const commit = await GitHubClient.getCommit(context, review.commit_id);
 
-	if (commit.author?.id === review.user.id) {
+	assert(commit.author, `Failed to get author for SHA: ${review.commit_id}`);
+	assert(
+		commit.committer,
+		`Failed to get committer for SHA: ${review.commit_id}`,
+	);
+
+	if (commit.author.id === review.user.id) {
 		context.log.debug(
 			'Ignoring review by author of the commit: %s',
 			review.user.login,
@@ -51,7 +63,7 @@ export async function handlePullRequestReview(context: Context) {
 		return;
 	}
 
-	if (commit.committer?.id === review.user.id) {
+	if (commit.committer.id === review.user.id) {
 		context.log.debug(
 			'Ignoring review by committer of the commit: %s',
 			review.user.login,
