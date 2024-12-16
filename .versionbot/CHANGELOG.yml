@@ -1,4 +1,16 @@
 - commits:
+    - subject: Lock file maintenance
+      hash: 71dfb15189607dc2721cf25a043db7407d52aad5
+      body: |
+        Update 
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.0.12
+  title: ""
+  date: 2024-12-16T00:12:08.391Z
+- commits:
     - subject: Remove body match requirement from approved reviews
       hash: 720c460639c4fa69249e40c94687c5642cf7cc8c
       body: |
