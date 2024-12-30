@@ -41,7 +41,14 @@ export async function handleDeploymentProtectionRule(
 		return;
 	}
 
-	if (!['pull_request', 'pull_request_target', 'push'].includes(event)) {
+	if (
+		![
+			'pull_request',
+			'pull_request_target',
+			'push',
+			'workflow_dispatch',
+		].includes(event)
+	) {
 		context.log.info(
 			'Ignoring unsupported deployment protection rule event: %s',
 			event,
