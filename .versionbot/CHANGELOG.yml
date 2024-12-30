@@ -1,4 +1,22 @@
 - commits:
+    - subject: Enable support for workflow dispatch events
+      hash: e5f10adbf59fea9f300fd079c009a8ac1d544c69
+      body: |
+        These events include the same information as pull request events
+        if they are triggered in the context of a PR.
+
+        If they are triggered as a standalone workflow run, there will be no
+        associated PRs to find matching reviews and they will remain unapproved.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.0.17
+  title: ""
+  date: 2024-12-30T14:03:45.518Z
+- commits:
     - subject: Lock file maintenance
       hash: eced90caa33fae099ccbe2bf03878dc2e2b55dea
       body: |
