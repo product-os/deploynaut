@@ -1,4 +1,16 @@
 - commits:
+    - subject: Lock file maintenance
+      hash: aac40b4e0f34c1ffb7b933877a02e75fcf495355
+      body: |
+        Update 
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.0.18
+  title: ""
+  date: 2025-01-06T00:13:42.849Z
+- commits:
     - subject: Enable support for workflow dispatch events
       hash: e5f10adbf59fea9f300fd079c009a8ac1d544c69
       body: |
