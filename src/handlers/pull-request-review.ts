@@ -7,7 +7,8 @@ import * as GitHubClient from '../client.js';
 import assert from 'assert';
 
 export async function handlePullRequestReview(context: Context) {
-	const { review } = context.payload as PullRequestReviewSubmittedEvent;
+	const { review, pull_request } =
+		context.payload as PullRequestReviewSubmittedEvent;
 
 	const eventDetails = {
 		review: {
@@ -17,6 +18,11 @@ export async function handlePullRequestReview(context: Context) {
 			user: {
 				id: review.user.id,
 				login: review.user.login,
+			},
+		},
+		pull_request: {
+			head: {
+				ref: pull_request.head.ref,
 			},
 		},
 	};
@@ -71,25 +77,33 @@ export async function handlePullRequestReview(context: Context) {
 		return;
 	}
 
+	// Find all "waiting" workflow runs associated with this pull request branch.
 	const workflowRuns = await GitHubClient.listWorkflowRuns(
 		context,
-		review.commit_id,
+		pull_request.head.ref,
 	);
 
+	// Filter workflows to only include commits that were reviewed directly,
+	// or from pull request target workflows which do not use the same branch SHA.
+	const filteredWorkflowRuns = workflowRuns.filter((workflowRun) => {
+		return (
+			workflowRun.head_sha === review.commit_id ||
+			workflowRun.event === 'pull_request_target'
+		);
+	});
+
 	await Promise.all(
-		workflowRuns.map(async (workflowRun: WorkflowRun) => {
+		filteredWorkflowRuns.map(async (workflowRun: WorkflowRun) => {
 			const pendingDeployments = await GitHubClient.listPendingDeployments(
 				context,
 				workflowRun.id,
 			);
 
-			if (pendingDeployments.length === 0) {
-				context.log.info(
-					'No pending deployments found for workflow run %s',
-					workflowRun.id,
-				);
-				return;
-			}
+			context.log.info(
+				'Pending deployments for workflow run %s: %s',
+				workflowRun.id,
+				JSON.stringify(pendingDeployments),
+			);
 
 			const environmentNames = pendingDeployments
 				.filter((deployment) => deployment.current_user_can_approve)

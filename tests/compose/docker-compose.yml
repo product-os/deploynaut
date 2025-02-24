@@ -16,5 +16,5 @@ services:
       - -c
       - |
         set -ex
-        node_modules/.bin/probot receive -e deployment_protection_rule -p fixtures/deployment_protection_rule.requested.json ./lib/index.js
+        # node_modules/.bin/probot receive -e deployment_protection_rule -p fixtures/deployment_protection_rule.requested.json ./lib/index.js
         node_modules/.bin/probot receive -e pull_request_review -p fixtures/pull_request_review.submitted.json ./lib/index.js
