@@ -15,6 +15,7 @@ export async function handlePullRequestReview(context: Context) {
 			id: review.id,
 			body: review.body,
 			commit_id: review.commit_id,
+			submitted_at: review.submitted_at,
 			user: {
 				id: review.user.id,
 				login: review.user.login,
@@ -83,12 +84,18 @@ export async function handlePullRequestReview(context: Context) {
 		pull_request.head.ref,
 	);
 
-	// Filter workflows to only include commits that were reviewed directly,
-	// or from pull request target workflows which do not use the same branch SHA.
+	// Exclude workflows that were created within one minute of the review being submitted.
+	// This is to prevent time-of-check to time-of-use (TOCTOU) attacks.
+	// Only include workflows that were created by the reviewed commit or a
+	// pull request target workflow where the commit is from the target branch anyway.
 	const filteredWorkflowRuns = workflowRuns.filter((workflowRun) => {
+		// If submitted_at time is not provided, use 0 so no workflows can be approved
+		const submittedAt = review.submitted_at ? new Date(review.submitted_at) : 0;
+		const createdAt = new Date(workflowRun.created_at);
 		return (
-			workflowRun.head_sha === review.commit_id ||
-			workflowRun.event === 'pull_request_target'
+			(workflowRun.head_sha === review.commit_id ||
+				workflowRun.event === 'pull_request_target') &&
+			new Date(createdAt.getTime() + 60 * 1000) < submittedAt
 		);
 	});
 
