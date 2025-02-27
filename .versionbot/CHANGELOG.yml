@@ -1,4 +1,39 @@
 - commits:
+    - subject: Exclude workflows created within 1 minute of the review
+      hash: 2390c8c4984789570bba3ec74f9a99f69c993ff5
+      body: >
+        Exclude workflows that were created within one minute of the review
+        being submitted.
+
+        This is to prevent time-of-check to time-of-use (TOCTOU) attacks.
+      footer:
+        Change-type: minor
+        change-type: minor
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+    - subject: Fix approval of pull request target workflows with same branch
+      hash: 5b3cb730e6593d4d8752eb9a329f0897e288a56c
+      body: |
+        The previous pending workflow query was based on the reviewed
+        commit SHA but this would not return any pull_request_target events.
+
+        This change updates the filter to find all pending workflows based
+        on the branch, then reduces the list further by approved commits
+        or event type.
+
+        The events must already be in a pending state before the approval
+        is received, this is unchanged.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.1.0
+  title: ""
+  date: 2025-02-27T20:13:52.544Z
+- commits:
     - subject: Lock file maintenance
       hash: ff45d9639120834caad44fef161fbe850002a29f
       body: |
