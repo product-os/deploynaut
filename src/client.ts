@@ -114,12 +114,12 @@ export async function listPullRequestReviews(
 // https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-repository
 export async function listWorkflowRuns(
 	context: any,
-	headSha: string,
+	branch: string,
 ): Promise<WorkflowRun[]> {
 	// what is the status "requested" used for?
 	const request = context.repo({
 		status: 'waiting',
-		head_sha: headSha,
+		branch,
 	});
 	const {
 		data: { workflow_runs: runs },

@@ -18,6 +18,8 @@ const testFixtures = {
 			id: 456,
 			body: '/deploy please',
 			commit_id: 'test-sha',
+			// workflows must be created before this review was submitted
+			submitted_at: '2025-02-24T13:13:54Z',
 			state: 'COMMENTED',
 			user: {
 				login: 'test-user',
@@ -26,6 +28,14 @@ const testFixtures = {
 			html_url: 'https://github.com/test-org/test-repo/pull/123/reviews/456',
 		},
 		installation: { id: 12345678 },
+		pull_request: {
+			head: {
+				ref: 'test-branch',
+			},
+			base: {
+				sha: 'base-sha',
+			},
+		},
 		repository: {
 			owner: {
 				login: 'test-org',
@@ -56,7 +66,7 @@ describe('Pull Request Review Handler', () => {
 		nock.enableNetConnect();
 	});
 
-	test('processes valid deploy comment', async () => {
+	test('validates pull request workflows with matching commit', async () => {
 		const mock = nock('https://api.github.com')
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } })
@@ -64,7 +74,22 @@ describe('Pull Request Review Handler', () => {
 			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
-			.reply(200, { workflow_runs: [{ id: 1234, actor: { id: 123 } }] })
+			.reply(200, {
+				workflow_runs: [
+					{
+						id: 1234,
+						actor: { id: 123 },
+						head_sha: 'test-sha',
+						// ~10 minutes before the review was submitted
+						created_at: new Date(
+							new Date(
+								testFixtures.pull_request_review.review.submitted_at,
+							).getTime() -
+								10 * 60 * 1000,
+						).toISOString(),
+					},
+				],
+			})
 			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
 			.reply(200, [
 				{
@@ -80,6 +105,122 @@ describe('Pull Request Review Handler', () => {
 		await probot.receive({
 			name: 'pull_request_review',
 			payload: testFixtures.pull_request_review,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('validates pull request target workflows with matching branch', async () => {
+		const mock = nock('https://api.github.com')
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [
+					{
+						id: 1234,
+						actor: { id: 123 },
+						event: 'pull_request_target',
+						// ~10 minutes before the review was submitted
+						created_at: new Date(
+							new Date(
+								testFixtures.pull_request_review.review.submitted_at,
+							).getTime() -
+								10 * 60 * 1000,
+						).toISOString(),
+					},
+				],
+			})
+			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.reply(200, [
+				{
+					environment: { name: 'test' },
+					current_user_can_approve: true,
+				},
+			])
+			.post(
+				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+			)
+			.reply(200);
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload: testFixtures.pull_request_review,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('skips workflows created within one minute of the review being submitted', async () => {
+		const mock = nock('https://api.github.com')
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [
+					{
+						id: 1234,
+						actor: { id: 123 },
+						head_sha: 'test-sha',
+						// 30 seconds before the review was submitted
+						created_at: new Date(
+							new Date(
+								testFixtures.pull_request_review.review.submitted_at,
+							).getTime() -
+								30 * 1000,
+						).toISOString(),
+					},
+				],
+			});
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload: testFixtures.pull_request_review,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('skips all workflows if submitted_at is not included in the review', async () => {
+		const mock = nock('https://api.github.com')
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [
+					{
+						id: 1234,
+						actor: { id: 123 },
+						head_sha: 'test-sha',
+						// ~10 minutes before the review was submitted
+						created_at: new Date(
+							new Date(
+								testFixtures.pull_request_review.review.submitted_at,
+							).getTime() -
+								10 * 60 * 1000,
+						).toISOString(),
+					},
+				],
+			});
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload: {
+				...testFixtures.pull_request_review,
+				review: {
+					...testFixtures.pull_request_review.review,
+					submitted_at: undefined,
+				},
+			},
 		});
 
 		expect(mock.pendingMocks()).toStrictEqual([]);
@@ -197,7 +338,9 @@ describe('Pull Request Review Handler', () => {
 			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
-			.reply(200, { workflow_runs: [] });
+			.reply(200, {
+				workflow_runs: [{ id: 1234, actor: { id: 123 }, head_sha: 'bad-sha' }],
+			});
 
 		await probot.receive({
 			name: 'pull_request_review',
@@ -215,7 +358,22 @@ describe('Pull Request Review Handler', () => {
 			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
-			.reply(200, { workflow_runs: [{ id: 1234, actor: { id: 123 } }] })
+			.reply(200, {
+				workflow_runs: [
+					{
+						id: 1234,
+						actor: { id: 123 },
+						head_sha: 'test-sha',
+						// ~10 minutes before the review was submitted
+						created_at: new Date(
+							new Date(
+								testFixtures.pull_request_review.review.submitted_at,
+							).getTime() -
+								10 * 60 * 1000,
+						).toISOString(),
+					},
+				],
+			})
 			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
 			.reply(200, []);
 
@@ -235,7 +393,22 @@ describe('Pull Request Review Handler', () => {
 			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
-			.reply(200, { workflow_runs: [{ id: 1234, actor: { id: 123 } }] })
+			.reply(200, {
+				workflow_runs: [
+					{
+						id: 1234,
+						actor: { id: 123 },
+						head_sha: 'test-sha',
+						// ~10 minutes before the review was submitted
+						created_at: new Date(
+							new Date(
+								testFixtures.pull_request_review.review.submitted_at,
+							).getTime() -
+								10 * 60 * 1000,
+						).toISOString(),
+					},
+				],
+			})
 			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
 			.reply(200, [
 				{ environment: { name: 'test' }, current_user_can_approve: false },
