@@ -1,4 +1,22 @@
 - commits:
+    - subject: Handle cases where an authenticated App ID was not returned
+      hash: 5b3b8d9c04d15389e0d7e36328c45a837958aa25
+      body: |
+        Newer versions of the octokit SDK have updated this
+        property and it can now possibly return null.
+
+        We were only using it to avoid creating duplicate comments so
+        we can just skip that step.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.1.4
+  title: ""
+  date: 2025-03-11T19:43:03.288Z
+- commits:
     - subject: Update dependency @vitest/coverage-v8 to v3
       hash: 769d439a6aab5326b3e538e86cc17448e405d510
       body: |
