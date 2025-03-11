@@ -1,4 +1,16 @@
 - commits:
+    - subject: Update dependency @types/node to v22
+      hash: 0d3790d793828804cf1acb9de69fe0c23d5c646c
+      body: |
+        Update @types/node from 20.17.17 to 22.13.5
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.1.1
+  title: ""
+  date: 2025-03-11T13:51:36.004Z
+- commits:
     - subject: Exclude workflows created within 1 minute of the review
       hash: 2390c8c4984789570bba3ec74f9a99f69c993ff5
       body: >
