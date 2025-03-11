@@ -1,4 +1,16 @@
 - commits:
+    - subject: Lock file maintenance
+      hash: cff72277584af7bc5443069a0163e45c9584b767
+      body: |
+        Update 
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.1.5
+  title: ""
+  date: 2025-03-11T20:07:33.326Z
+- commits:
     - subject: Handle cases where an authenticated App ID was not returned
       hash: 5b3b8d9c04d15389e0d7e36328c45a837958aa25
       body: |
