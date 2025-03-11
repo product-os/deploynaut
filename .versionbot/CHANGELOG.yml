@@ -1,4 +1,16 @@
 - commits:
+    - subject: Update dependency smee-client to v3
+      hash: 4b1a3601a3917ea639b81cce437ce37d7c7e8b2e
+      body: |
+        Update smee-client from 2.0.4 to 3.1.1
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.1.2
+  title: ""
+  date: 2025-03-11T14:24:52.050Z
+- commits:
     - subject: Update dependency @types/node to v22
       hash: 0d3790d793828804cf1acb9de69fe0c23d5c646c
       body: |
