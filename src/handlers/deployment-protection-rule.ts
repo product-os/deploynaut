@@ -102,6 +102,8 @@ export async function handleDeploymentProtectionRule(
 							review.body?.startsWith('/deploy'))),
 			);
 
+			// It's okay to break the for loop here because we are approving the entire deployment,
+			// not just the individual pull requests.
 			if (deployReview) {
 				return context.octokit.request(`POST ${callbackUrl}`, {
 					environment_name: environment,
@@ -110,14 +112,20 @@ export async function handleDeploymentProtectionRule(
 				});
 			}
 
-			const comments = await filterIssueComments(
-				context,
-				pull.number,
-				client.data.id,
-				instructionalComment,
-			);
+			let oldComments = [];
+			if (client.data?.id != null) {
+				oldComments = await filterIssueComments(
+					context,
+					pull.number,
+					client.data.id,
+					instructionalComment,
+				);
+			} else {
+				// v8-coverage:ignore-next-line
+				context.log.error('Failed to get authenticated app ID');
+			}
 
-			if (comments.length === 0) {
+			if (oldComments.length === 0) {
 				await GitHubClient.createIssueComment(
 					context,
 					pull.number,

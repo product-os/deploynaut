@@ -373,4 +373,29 @@ describe('Deployment Protection Rule Handler', () => {
 
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
+
+	test('handles failed to get authenticated app ID', async () => {
+		const mock = nock('https://api.github.com')
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } })
+			.get('/app')
+			.reply(200, { id: null })
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
+			.get('/repos/test-org/test-repo/pulls/123/reviews')
+			.reply(200, [])
+			.post('/repos/test-org/test-repo/issues/123/comments', {
+				body: instructionalComment,
+			})
+			.reply(200);
+
+		process.env.BYPASS_ACTORS = '';
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload: testFixtures.deployment_protection_rule,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
 });
