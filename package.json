@@ -1,6 +1,6 @@
 {
   "name": "deploynaut",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "description": "Approve deployments via reviews from maintainers",
   "author": "Balena",
@@ -42,6 +42,6 @@
   },
   "type": "module",
   "versionist": {
-    "publishedAt": "2025-04-07T00:06:58.899Z"
+    "publishedAt": "2025-04-14T00:09:42.037Z"
   }
 }
