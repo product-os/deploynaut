@@ -1,0 +1,20 @@
+# Team membership conditions testing
+policy:
+  approval:
+    - team-rule
+
+approval_rules:
+  - name: team-rule
+    if:
+      # "only_has_contributors_in" is satisfied if all of the commits on the
+      # pull request are authored and committed by users in the users list or
+      # that belong to any of the listed organizations or teams.
+      only_has_contributors_in:
+        teams:
+          - test-org/security-team
+    requires:
+      count: 1
+      teams:
+        - test-org/security-team
+    methods:
+      github_review: true
