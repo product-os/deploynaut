@@ -1,4 +1,16 @@
 - commits:
+    - subject: "Update app.yml manifest to include 'contents: read'"
+      hash: 069fd04451a63b930d6c7d3121352ea4f58e4137
+      body: |
+        This permission is required for the app to inspect commit authors.
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Kyle Harding
+  version: 0.1.23
+  title: ""
+  date: 2025-06-26T17:06:21.191Z
+- commits:
     - subject: Lock file maintenance
       hash: a34eff3165d8ce60a2b037d266e4fab5b33c1640
       body: |
