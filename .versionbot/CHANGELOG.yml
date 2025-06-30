@@ -1,4 +1,16 @@
 - commits:
+    - subject: Lock file maintenance
+      hash: 9361a65a33f47bfdb57eac6351196fe6b28a65c3
+      body: |
+        Update 
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.1.24
+  title: ""
+  date: 2025-06-30T00:12:07.134Z
+- commits:
     - subject: "Update app.yml manifest to include 'contents: read'"
       hash: 069fd04451a63b930d6c7d3121352ea4f58e4137
       body: |
