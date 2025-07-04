@@ -1,0 +1,22 @@
+# OR conditions testing - requires either team approval OR user approval
+policy:
+  approval:
+    - or:
+      - team-approval
+      - user-approval
+
+approval_rules:
+  - name: team-approval
+    requires:
+      count: 1
+      teams:
+        - test-org/test-team
+    methods:
+      github_review: true
+  - name: user-approval
+    requires:
+      count: 1
+      users:
+        - test-reviewer
+    methods:
+      github_review: true

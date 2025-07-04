@@ -1,0 +1,17 @@
+# Signature-based approval policy - only requires valid signatures
+policy:
+  approval:
+    - has valid signatures by test-users
+
+# the list of rules
+approval_rules:
+  - name: has valid signatures by test-users
+    if:
+      # Checks signatures on all the commits in the pull request
+      has_valid_signatures_by:
+        users: []
+        organizations: []
+        teams:
+          - test-org/test-users
+    requires:
+      count: 0

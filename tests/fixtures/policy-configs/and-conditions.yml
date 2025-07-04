@@ -1,0 +1,22 @@
+# AND conditions testing - requires both team-a AND team-b approval
+policy:
+  approval:
+    - and:
+      - team-a-approval
+      - team-b-approval
+
+approval_rules:
+  - name: team-a-approval
+    requires:
+      count: 1
+      teams:
+        - org/team-a
+    methods:
+      github_review: true
+  - name: team-b-approval
+    requires:
+      count: 1
+      teams:
+        - org/team-b
+    methods:
+      github_review: true

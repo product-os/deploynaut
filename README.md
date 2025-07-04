@@ -1,65 +1,124 @@
 # deploynaut
 
-A GitHub App built with [Probot](https://github.com/probot/probot) to approve deployments via reviews from maintainers
+A GitHub App built with [Probot](https://github.com/probot/probot) that manages deployment approvals via custom deployment protection rules. It enables secure, policy-driven deployment approvals through GitHub PR reviews and comments.
 
-## How It Works
+## Architecture
 
-### Overview
+### Event-Driven Processing
 
-Deploynaut functions as a GitHub App, managing deployment approvals via [custom deployment protection rules](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/creating-custom-deployment-protection-rules).
+Deploynaut processes two main GitHub webhook events:
 
-### Approval Process
+1. **`deployment_protection_rule.requested`** - Triggered when a deployment requires approval
+2. **`pull_request_review.submitted`** - Triggered when a PR review is submitted
 
-Deployments are approved by submitting an approved review, or a `/deploy` command in a commented review.
+Both events are processed by a **Policy Evaluator** that reads configuration from YAML policy files.
 
-#### Deployment Validation
+### Policy Configuration
 
-- Validates deployment source and context when triggered on a protected environment.
-- Auto-approves or requests manual approval based on event type.
+The app uses YAML configuration files that define approval rules and requirements. Configuration is loaded using Probot's configuration framework, supporting both organization-level and repository-level policies:
 
-#### Automatic Approval Conditions
+- **Organization-level**: `.github/deploynaut.yml` in the organization's `.github` repository
+- **Repository-level**: `.github/deploynaut.yml` in the specific repository
 
-Deployments are auto-approved if:
+### Core Components
 
-- They triggered by a previously approved commit SHA (including pull request merges).
-- They are initiated by an allowlisted user (e.g., Renovate) who is:
-  - The author of the commit that triggered the deployment.
-  - Listed in the `BYPASS_USERS` IDs.
+1. **Policy Evaluator**: Evaluates deployment requests against configured approval rules
+2. **Event Handlers**: Process incoming webhook events and coordinate with the evaluator
+3. **GitHub API Client**: Handles GitHub API interactions for user permissions and commit data
 
-#### Manual Approval Process
+### How It Works
 
-For manual approvals:
+#### Deployment Protection Flow
 
-- An eligible reviewer submits a [review](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/reviewing-proposed-changes-in-a-pull-request#submitting-your-review).
-  - Commented reviews need to start with `/deploy`.
-  - Approved reviews do not need to match any string.
-- The app approves pending deployments matching the reviewed commit SHA.
+1. **Trigger**: GitHub deployment triggers `deployment_protection_rule.requested` event
+2. **Policy Loading**: App loads YAML configuration from `.github/deploynaut.yml`
+3. **Context Gathering**: Collects commit data, user memberships, and review information
+4. **Policy Evaluation**: Evaluates approval rules against the deployment context
+5. **Decision**: Auto-approves or requests manual approval based on policy outcome
 
-#### Eligible Reviewers
+#### Review Processing Flow
 
-Reviewers must:
+1. **Trigger**: PR review submission triggers `pull_request_review.submitted` event
+2. **Validation**: Validates review eligibility and comment patterns
+3. **Policy Check**: Evaluates if the review satisfies approval requirements
+4. **Approval**: Approves matching pending deployments for the commit SHA
 
-- Have repository write access or higher.
-- Not be the commit author or committer.
-- Not be a bot account.
+#### Security Model
 
-### Security Measures
+- **Commit SHA Verification**: Uses commit SHA as source of truth for approvals
+- **Actor Separation**: Prevents self-approval (different commit author and reviewer required)
+- **Comment Integrity**: Validates comments haven't been modified since creation
+- **Stateless Operations**: No persistent state between requests to prevent TOCTOU attacks
 
-Key security features include:
+## Configuration
 
-- Using commit SHA as the review source of truth.
-- Ensuring comment integrity (unmodified since creation).
-- Maintaining stateless operations.
-- Preventing TOCTOU attacks with atomic operations.
-- Requiring different actors for commit and approval.
+### Policy File Structure
 
-### Example Workflow
+Create a `.github/deploynaut.yml` file in your organization's `.github` repository or in individual repositories:
 
-1. Developer opens a PR and triggers a deployment.
-2. App receives a deployment protection rule event.
-3. If not auto-approved, the app comments on the PR with instructions.
-4. Eligible reviewer submits a commentedreview with `/deploy`.
-5. App validates the approval and enables deployment.
+```yaml
+# High-level policy definition
+policy:
+  approval:
+    - or:
+        - team-has-approved
+        - has-valid-signatures
+        - authored-by-bot
+
+# Approval rule definitions
+approval_rules:
+  - name: team-has-approved
+    requires:
+      count: 1
+      teams: ['org/team-name']
+    methods:
+      github_review: true
+      github_review_comment_patterns: ['^/deploy']
+
+  - name: has-valid-signatures
+    if:
+      has_valid_signatures_by:
+        teams: ['org/team-name']
+        users: ['trusted-user']
+        organizations: ['org-name']
+    requires:
+      count: 0
+
+  - name: authored-by-bot
+    if:
+      authored_by:
+        users: ['renovate[bot]']
+    requires:
+      count: 0
+```
+
+### Approval Rules
+
+Each approval rule supports:
+
+#### Conditions (`if`)
+
+- **`has_valid_signatures_by`**: Commits signed by authorized users/teams/orgs
+- **`authored_by`**: Commits authored by specific users
+- **`environment`**: Environment-specific conditions
+
+#### Requirements (`requires`)
+
+- **`count`**: Number of approvals needed
+- **`users`**: Specific users who can approve
+- **`teams`**: Teams whose members can approve (format: `org/team-name`)
+- **`organizations`**: Organizations whose members can approve
+
+#### Methods (`methods`)
+
+- **`github_review`**: Accept GitHub PR reviews
+- **`github_review_comment_patterns`**: Accept comments matching regex patterns
+
+### Configuration Hierarchy
+
+1. **Repository-level**: `.github/deploynaut.yml` in the repository
+2. **Organization-level**: `.github/deploynaut.yml` in the organization's `.github` repository
+3. **Fallback**: If no configuration found, all deployments require manual approval
 
 ## Setup
 
@@ -81,21 +140,33 @@ docker build -t deploynaut .
 docker run --env-file .env deploynaut
 ```
 
-## Environment Variables
+## Deployment
 
-Probot configuration variables are documented [here](https://probot.github.io/docs/configuration/).
+### GitHub App Installation
+
+1. **Create GitHub App**: Use the provided `app.yml` manifest to create a GitHub App via [GitHub's App manifest flow](https://docs.github.com/en/developers/apps/building-github-apps/creating-a-github-app-from-a-manifest)
+
+2. **Required Permissions**:
+   - `actions: read` - Access workflow information
+   - `contents: read` - Repository contents and commits
+   - `deployments: write` - Manage deployment statuses
+   - `metadata: read` - Repository metadata access
+   - `pull_requests: write` - Comment on and modify PRs
+   - `members: read` - Organization members and teams
+
+3. **Webhook Events**:
+   - `deployment_protection_rule` - Deployment approval requests
+   - `pull_request_review` - PR review submissions
+
+4. **Installation**: Install the GitHub App on your organization or specific repositories
+
+### Environment Configuration
+
+Probot configuration variables are documented in the [Probot configuration guide](https://probot.github.io/docs/configuration/).
 
 > [!NOTE]
-> When deploying to production and using a custom domain (not smee), the Callback URL in the GitHub App needs to include TLD + WEBHOOK_PATH.
->
-> e.g. `https://my-custom-domain.com/api/github/webhooks`
-
-Additional environment variables specific to this app:
-
-- `BYPASS_ACTORS`: A comma-separated list of GitHub user IDs to bypass the approval process.
-
-  For users, you can find the ID by visiting `https://api.github.com/users/<username>`
-  For apps, you can find the ID by visiting `https://api.github.com/users/<app-name>%5Bbot%5D`
+> When deploying to production with a custom domain, set the Callback URL to include your domain + webhook path:
+> `https://your-domain.com/api/github/webhooks`
 
 ## Contributing
 

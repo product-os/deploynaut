@@ -1,0 +1,17 @@
+# Team membership conditions testing
+policy:
+  approval:
+    - team-rule
+
+approval_rules:
+  - name: team-rule
+    if:
+      was_authored_by:
+        teams:
+          - test-org/security-team
+    requires:
+      count: 1
+      teams:
+        - test-org/security-team
+    methods:
+      github_review: true

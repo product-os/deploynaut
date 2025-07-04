@@ -11,7 +11,66 @@ const privateKey = fs.readFileSync(
 );
 
 // Test fixtures
-const testFixtures = {
+interface WorkflowRun {
+	id: number;
+	actor: { id: number };
+	head_sha: string;
+	created_at: string;
+}
+
+interface Commit {
+	author: { id: number; login: string } | null;
+	committer: { id: number; login: string } | null;
+	commit?: {
+		verification: {
+			verified: boolean;
+			reason: string;
+		} | null;
+	};
+}
+
+interface PullRequestReview {
+	action: string;
+	review: {
+		id: number;
+		body: string;
+		commit_id: string;
+		submitted_at: string;
+		state: string;
+		user: {
+			login: string;
+			id: number;
+		};
+		html_url: string;
+	};
+	installation: { id: number };
+	pull_request: {
+		// eslint-disable-next-line id-denylist
+		number: number;
+		head: {
+			ref: string;
+		};
+		base: {
+			sha: string;
+		};
+	};
+	repository: {
+		owner: {
+			login: string;
+		};
+		name: string;
+	};
+}
+
+interface TestFixtures {
+	pull_request_review: PullRequestReview;
+	workflow_run: WorkflowRun;
+	commit: Commit;
+}
+
+const reviewSubmittedAt = '2025-02-24T13:13:54Z';
+
+const testFixtures: TestFixtures = {
 	pull_request_review: {
 		action: 'submitted',
 		review: {
@@ -19,16 +78,18 @@ const testFixtures = {
 			body: '/deploy please',
 			commit_id: 'test-sha',
 			// workflows must be created before this review was submitted
-			submitted_at: '2025-02-24T13:13:54Z',
+			submitted_at: reviewSubmittedAt,
 			state: 'COMMENTED',
 			user: {
-				login: 'test-user',
+				login: 'test-reviewer',
 				id: 789,
 			},
 			html_url: 'https://github.com/test-org/test-repo/pull/123/reviews/456',
 		},
 		installation: { id: 12345678 },
 		pull_request: {
+			// eslint-disable-next-line id-denylist
+			number: 123,
 			head: {
 				ref: 'test-branch',
 			},
@@ -43,13 +104,51 @@ const testFixtures = {
 			name: 'test-repo',
 		},
 	},
+	workflow_run: {
+		id: 1234,
+		actor: { id: 123 },
+		head_sha: 'test-sha',
+		created_at: new Date(
+			new Date(reviewSubmittedAt).getTime() - 10 * 60 * 1000,
+		).toISOString(),
+	},
+	commit: {
+		author: { id: 123, login: 'test-user' },
+		committer: { id: 123, login: 'test-user' },
+		commit: {
+			verification: {
+				verified: true,
+				reason: 'valid-signature',
+			},
+		},
+	},
 };
+
+// Load the policy config fixtures
+const basicApprovalFixture = fs.readFileSync(
+	path.join(__dirname, '../fixtures/policy-configs/basic-approval-only.yml'),
+	'utf-8',
+);
+
+const simpleReviewFixture = fs.readFileSync(
+	path.join(__dirname, '../fixtures/policy-configs/simple-review-approval.yml'),
+	'utf-8',
+);
+
+const deployCommentFixture = fs.readFileSync(
+	path.join(
+		__dirname,
+		'../fixtures/policy-configs/deploy-comment-patterns.yml',
+	),
+	'utf-8',
+);
 
 describe('Pull Request Review Handler', () => {
 	let probot: any;
 
 	beforeEach(() => {
 		nock.disableNetConnect();
+
 		probot = new Probot({
 			appId: 456,
 			privateKey,
@@ -66,108 +165,21 @@ describe('Pull Request Review Handler', () => {
 		nock.enableNetConnect();
 	});
 
-	test('validates pull request workflows with matching commit', async () => {
-		const mock = nock('https://api.github.com')
-			.post('/app/installations/12345678/access_tokens')
-			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits/test-sha')
-			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
-			.get('/repos/test-org/test-repo/actions/runs')
-			.query(true)
-			.reply(200, {
-				workflow_runs: [
-					{
-						id: 1234,
-						actor: { id: 123 },
-						head_sha: 'test-sha',
-						// ~10 minutes before the review was submitted
-						created_at: new Date(
-							new Date(
-								testFixtures.pull_request_review.review.submitted_at,
-							).getTime() -
-								10 * 60 * 1000,
-						).toISOString(),
-					},
-				],
-			})
-			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
-			.reply(200, [
-				{
-					environment: { name: 'test' },
-					current_user_can_approve: true,
-				},
-			])
-			.post(
-				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
-			)
-			.reply(200);
-
-		await probot.receive({
-			name: 'pull_request_review',
-			payload: testFixtures.pull_request_review,
-		});
-
-		expect(mock.pendingMocks()).toStrictEqual([]);
-	});
-
-	test('validates pull request target workflows with matching branch', async () => {
-		const mock = nock('https://api.github.com')
-			.post('/app/installations/12345678/access_tokens')
-			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits/test-sha')
-			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
-			.get('/repos/test-org/test-repo/actions/runs')
-			.query(true)
-			.reply(200, {
-				workflow_runs: [
-					{
-						id: 1234,
-						actor: { id: 123 },
-						event: 'pull_request_target',
-						// ~10 minutes before the review was submitted
-						created_at: new Date(
-							new Date(
-								testFixtures.pull_request_review.review.submitted_at,
-							).getTime() -
-								10 * 60 * 1000,
-						).toISOString(),
-					},
-				],
-			})
-			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
-			.reply(200, [
-				{
-					environment: { name: 'test' },
-					current_user_can_approve: true,
-				},
-			])
-			.post(
-				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
-			)
-			.reply(200);
-
-		await probot.receive({
-			name: 'pull_request_review',
-			payload: testFixtures.pull_request_review,
-		});
-
-		expect(mock.pendingMocks()).toStrictEqual([]);
-	});
-
 	test('skips workflows created within one minute of the review being submitted', async () => {
-		const mock = nock('https://api.github.com')
+		// Use basic approval fixture for timing test (needs comment patterns for COMMENTED reviews)
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
 			.post('/app/installations/12345678/access_tokens')
-			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits/test-sha')
-			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
 			.reply(200, {
 				workflow_runs: [
 					{
-						id: 1234,
-						actor: { id: 123 },
-						head_sha: 'test-sha',
+						...testFixtures.workflow_run,
 						// 30 seconds before the review was submitted
 						created_at: new Date(
 							new Date(
@@ -177,7 +189,15 @@ describe('Pull Request Review Handler', () => {
 						).toISOString(),
 					},
 				],
-			});
+			})
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			]);
 
 		await probot.receive({
 			name: 'pull_request_review',
@@ -187,30 +207,28 @@ describe('Pull Request Review Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('skips all workflows if submitted_at is not included in the review', async () => {
-		const mock = nock('https://api.github.com')
+	test('rejects pull request review if submitted_at property is unset', async () => {
+		// Use basic approval fixture for timing validation test (needs comment patterns for COMMENTED reviews)
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
 			.post('/app/installations/12345678/access_tokens')
-			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits/test-sha')
-			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
 			.reply(200, {
-				workflow_runs: [
-					{
-						id: 1234,
-						actor: { id: 123 },
-						head_sha: 'test-sha',
-						// ~10 minutes before the review was submitted
-						created_at: new Date(
-							new Date(
-								testFixtures.pull_request_review.review.submitted_at,
-							).getTime() -
-								10 * 60 * 1000,
-						).toISOString(),
-					},
-				],
-			});
+				workflow_runs: [testFixtures.workflow_run],
+			})
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			]);
 
 		await probot.receive({
 			name: 'pull_request_review',
@@ -226,7 +244,125 @@ describe('Pull Request Review Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('ignores unsupported review states', async () => {
+	test('approves workflow when review state is APPROVED', async () => {
+		// Use simple review fixture for APPROVED state test
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, simpleReviewFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [testFixtures.workflow_run],
+			})
+			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.reply(200, [
+				{
+					environment: { name: 'test' },
+					current_user_can_approve: true,
+				},
+			])
+			.post(
+				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+			)
+			.reply(200)
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.times(2)
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			]);
+
+		const payload = {
+			...testFixtures.pull_request_review,
+			review: {
+				...testFixtures.pull_request_review.review,
+				state: 'APPROVED',
+			},
+		};
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('approves workflow when review state is COMMENTED with deploy pattern', async () => {
+		// Use deploy comment patterns fixture for COMMENTED with pattern test
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, deployCommentFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [testFixtures.workflow_run],
+			})
+			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.reply(200, [
+				{
+					environment: { name: 'test' },
+					current_user_can_approve: true,
+				},
+			])
+			.post(
+				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+			)
+			.reply(200)
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.times(2)
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			]);
+
+		const payload = {
+			...testFixtures.pull_request_review,
+			review: {
+				...testFixtures.pull_request_review.review,
+				state: 'COMMENTED',
+				body: '/deploy this PR',
+			},
+		};
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('rejects workflow when review state is CHANGES_REQUESTED', async () => {
+		// Use basic approval fixture to test CHANGES_REQUESTED rejection
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit]);
+
 		const payload = {
 			...testFixtures.pull_request_review,
 			review: {
@@ -239,14 +375,28 @@ describe('Pull Request Review Handler', () => {
 			name: 'pull_request_review',
 			payload,
 		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('ignores unsupported comments', async () => {
+	test('rejects workflow when review state is COMMENTED without deploy pattern', async () => {
+		// Use deploy comment patterns fixture to test comment pattern matching failure
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, deployCommentFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit]);
+
 		const payload = {
 			...testFixtures.pull_request_review,
 			review: {
 				...testFixtures.pull_request_review.review,
-				body: 'Just a regular comment',
+				state: 'COMMENTED',
+				body: 'Just a regular comment without deploy command',
 			},
 		};
 
@@ -255,30 +405,21 @@ describe('Pull Request Review Handler', () => {
 			payload,
 		});
 
-		expect(nock.pendingMocks()).toStrictEqual([]);
+		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('ignores reviews by Bots', async () => {
-		const payload = {
-			...testFixtures.pull_request_review,
-			review: {
-				...testFixtures.pull_request_review.review,
-				user: {
-					...testFixtures.pull_request_review.review.user,
-					type: 'Bot',
-				},
-			},
-		};
+	test('rejects pull request review if author is also author of any commit', async () => {
+		// Use basic approval fixture for author validation test (needs comment patterns for COMMENTED reviews)
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
 
-		await probot.receive({
-			name: 'pull_request_review',
-			payload,
-		});
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit]);
 
-		expect(nock.pendingMocks()).toStrictEqual([]);
-	});
-
-	test('ignores review by commit author', async () => {
 		const payload = {
 			...testFixtures.pull_request_review,
 			review: {
@@ -290,12 +431,6 @@ describe('Pull Request Review Handler', () => {
 			},
 		};
 
-		const mock = nock('https://api.github.com')
-			.post('/app/installations/12345678/access_tokens')
-			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits/test-sha')
-			.reply(200, { author: { id: 123 }, committer: { id: 456 } });
-
 		await probot.receive({
 			name: 'pull_request_review',
 			payload,
@@ -304,7 +439,18 @@ describe('Pull Request Review Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('ignores review by commit committer', async () => {
+	test('rejects pull request review if author is also committer of any commit', async () => {
+		// Use basic approval fixture for committer validation test (needs comment patterns for COMMENTED reviews)
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit]);
+
 		const payload = {
 			...testFixtures.pull_request_review,
 			review: {
@@ -316,12 +462,6 @@ describe('Pull Request Review Handler', () => {
 			},
 		};
 
-		const mock = nock('https://api.github.com')
-			.post('/app/installations/12345678/access_tokens')
-			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits/test-sha')
-			.reply(200, { author: { id: 456 }, committer: { id: 123 } });
-
 		await probot.receive({
 			name: 'pull_request_review',
 			payload,
@@ -330,17 +470,33 @@ describe('Pull Request Review Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('exits early if no matching workflow runs', async () => {
-		const mock = nock('https://api.github.com')
+	test('rejects if there are no pending workflow runs after filtering', async () => {
+		// Use basic approval fixture for workflow filtering test (needs comment patterns for COMMENTED reviews)
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
 			.post('/app/installations/12345678/access_tokens')
-			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits/test-sha')
-			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
 			.reply(200, {
-				workflow_runs: [{ id: 1234, actor: { id: 123 }, head_sha: 'bad-sha' }],
-			});
+				workflow_runs: [
+					{
+						...testFixtures.workflow_run,
+						head_sha: 'bad-sha',
+					},
+				],
+			})
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			]);
 
 		await probot.receive({
 			name: 'pull_request_review',
@@ -350,30 +506,100 @@ describe('Pull Request Review Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('exits early if no pending deployments', async () => {
-		const mock = nock('https://api.github.com')
+	test('rejects if there are no pending deployments associated with the workflow run', async () => {
+		// Use basic approval fixture for deployment validation test (needs comment patterns for COMMENTED reviews)
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
 			.post('/app/installations/12345678/access_tokens')
-			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits/test-sha')
-			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
 			.reply(200, {
-				workflow_runs: [
-					{
-						id: 1234,
-						actor: { id: 123 },
-						head_sha: 'test-sha',
-						// ~10 minutes before the review was submitted
-						created_at: new Date(
-							new Date(
-								testFixtures.pull_request_review.review.submitted_at,
-							).getTime() -
-								10 * 60 * 1000,
-						).toISOString(),
-					},
-				],
+				workflow_runs: [testFixtures.workflow_run],
 			})
+			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.reply(200, [])
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			]);
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload: testFixtures.pull_request_review,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('rejects if current user cannot approve pending deployments', async () => {
+		// Use basic approval fixture for approval permission test (needs comment patterns for COMMENTED reviews)
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [testFixtures.workflow_run],
+			})
+			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.reply(200, [
+				{ environment: { name: 'test' }, current_user_can_approve: false },
+			])
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			]);
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload: testFixtures.pull_request_review,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('handles commit with undefined author', async () => {
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [testFixtures.workflow_run],
+			})
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [
+				{
+					...testFixtures.commit,
+					author: null,
+				},
+			])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			])
 			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
 			.reply(200, []);
 
@@ -385,34 +611,74 @@ describe('Pull Request Review Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('exits early if no deployments can be approved', async () => {
-		const mock = nock('https://api.github.com')
+	test('handles commit with undefined committer', async () => {
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
 			.post('/app/installations/12345678/access_tokens')
-			.reply(200, { token: 'test', permissions: { issues: 'write' } })
-			.get('/repos/test-org/test-repo/commits/test-sha')
-			.reply(200, { author: { id: 123 }, committer: { id: 123 } })
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/actions/runs')
 			.query(true)
 			.reply(200, {
-				workflow_runs: [
-					{
-						id: 1234,
-						actor: { id: 123 },
-						head_sha: 'test-sha',
-						// ~10 minutes before the review was submitted
-						created_at: new Date(
-							new Date(
-								testFixtures.pull_request_review.review.submitted_at,
-							).getTime() -
-								10 * 60 * 1000,
-						).toISOString(),
-					},
-				],
+				workflow_runs: [testFixtures.workflow_run],
 			})
-			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [
-				{ environment: { name: 'test' }, current_user_can_approve: false },
-			]);
+				{
+					...testFixtures.commit,
+					committer: null,
+				},
+			])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			])
+			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.reply(200, []);
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload: testFixtures.pull_request_review,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('handles commit with undefined verification', async () => {
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, basicApprovalFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [testFixtures.workflow_run],
+			})
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [
+				{
+					...testFixtures.commit,
+					commit: {
+						...testFixtures.commit.commit,
+						verification: null,
+					},
+				},
+			])
+			.get('/orgs/test-org/teams/test-maintainers/members')
+			.reply(200, [
+				{
+					login: 'test-reviewer',
+				},
+			])
+			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.reply(200, []);
 
 		await probot.receive({
 			name: 'pull_request_review',

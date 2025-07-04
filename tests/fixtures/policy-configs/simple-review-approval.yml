@@ -1,0 +1,15 @@
+# Simple review approval - only github review without comment patterns
+policy:
+  approval:
+    - test-maintainers have approved
+
+approval_rules:
+  - name: test-maintainers have approved
+    requires:
+      count: 1
+      users: []
+      organizations: []
+      teams:
+        - test-org/test-maintainers
+    methods:
+      github_review: true

@@ -1,0 +1,16 @@
+# Deploy comment patterns testing
+policy:
+  approval:
+    - maintainer-deploy-comment
+
+approval_rules:
+  - name: maintainer-deploy-comment
+    requires:
+      count: 1
+      teams:
+        - test-org/test-maintainers
+    methods:
+      github_review: true
+      github_review_comment_patterns:
+        - '/deploy'
+        - '/^\/deploy/'

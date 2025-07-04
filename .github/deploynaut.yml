@@ -1,0 +1,34 @@
+# the high level policy
+policy:
+  approval:
+    - or:
+      - security-team has approved
+      - has valid signatures by security-team
+
+# the list of rules
+approval_rules:
+  - name: security-team has approved
+    requires:
+      count: 1
+      users: []
+      organizations: []
+      teams:
+        - "balena-os/security-team"
+    methods:
+      github_review: true
+      github_review_comment_patterns:
+        - '^/deploy'
+  - name: has valid signatures by security-team
+    if:
+      # "has_valid_signatures_by" is satisfied if the commits in the pull request
+      # all have git commit signatures that have been verified by GitHub, and
+      # the authenticated signatures are attributed to a user in the users list
+      # or belong to a user in any of the listed organizations or teams.
+      has_valid_signatures_by:
+        users: []
+        organizations: []
+        teams:
+          - "balena-os/security-team"
+    requires:
+      count: 0
+

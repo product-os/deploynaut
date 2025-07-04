@@ -1,0 +1,19 @@
+# Basic approval policy - only requires github review approval
+policy:
+  approval:
+    - test-maintainers have approved
+
+# the list of rules
+approval_rules:
+  - name: test-maintainers have approved
+    requires:
+      count: 1
+      users: []
+      organizations: []
+      teams:
+        - test-org/test-maintainers
+    methods:
+      github_review: true
+      github_review_comment_patterns:
+        - '/deploy'
+        - '/^\/deploy/'

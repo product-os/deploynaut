@@ -1,0 +1,15 @@
+# Author-based approval policy - only requires specific author
+policy:
+  approval:
+    - was authored by test-bot
+
+# the list of rules
+approval_rules:
+  - name: was authored by test-bot
+    if:
+      # Checks the authors of all the commits in the pull request
+      was_authored_by:
+        users:
+          - test-bot
+    requires:
+      count: 0

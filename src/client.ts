@@ -1,7 +1,7 @@
 import type {
 	WorkflowRun,
 	PullRequestReview,
-	IssueComment,
+	User,
 } from '@octokit/webhooks-types';
 import type { components } from '@octokit/openapi-types';
 type PendingDeployment = components['schemas']['pending-deployment'];
@@ -72,19 +72,19 @@ type Commit = components['schemas']['commit'];
 //   return deployments;
 // }
 
-// // https://octokit.github.io/rest.js/v21/#pulls-list-commits
-// // https://docs.github.com/en/rest/pulls/pulls#list-commits-on-a-pull-request
-// export async function listPullRequestCommits(
-// 	context: any,
-// 	prNumber: number,
-// ): Promise<any[]> {
-// 	const request = context.repo({
-// 		pull_number: prNumber,
-// 	});
-// 	const { data: commits } =
-// 		await context.octokit.rest.pulls.listCommits(request);
-// 	return commits;
-// }
+// https://octokit.github.io/rest.js/v21/#pulls-list-commits
+// https://docs.github.com/en/rest/pulls/pulls#list-commits-on-a-pull-request
+export async function listPullRequestCommits(
+	context: any,
+	prNumber: number,
+): Promise<Commit[]> {
+	const request = context.repo({
+		pull_number: prNumber,
+	});
+	const { data: commits } =
+		await context.octokit.rest.pulls.listCommits(request);
+	return commits;
+}
 
 // https://octokit.github.io/rest.js/v21/#repos-get-commit
 // https://docs.github.com/en/rest/commits/commits#get-a-commit
@@ -95,6 +95,14 @@ export async function getCommit(context: any, ref: string): Promise<Commit> {
 	const { data: commit } = await context.octokit.rest.repos.getCommit(request);
 	return commit;
 }
+
+// // https://docs.github.com/en/rest/commits/commits#get-a-commit
+// export function isCommitVerified(commit: Commit): boolean {
+// 	return (
+// 		commit.commit.verification?.verified === true &&
+// 		commit.commit.verification?.reason === 'valid'
+// 	);
+// }
 
 // https://octokit.github.io/rest.js/v21/#pulls-list-reviews
 // https://docs.github.com/en/rest/pulls/reviews#list-reviews-for-a-pull-request
@@ -115,10 +123,10 @@ export async function listPullRequestReviews(
 export async function listWorkflowRuns(
 	context: any,
 	branch: string,
+	status = 'waiting',
 ): Promise<WorkflowRun[]> {
-	// what is the status "requested" used for?
 	const request = context.repo({
-		status: 'waiting',
+		status,
 		branch,
 	});
 	const {
@@ -175,35 +183,35 @@ export async function reviewWorkflowRun(
 	await context.octokit.rest.actions.reviewCustomGatesForRun(request);
 }
 
-// https://octokit.github.io/rest.js/v18/#issues-list-comments
-// https://docs.github.com/en/rest/issues/comments#list-issue-comments
-export async function listIssueComments(
-	context: any,
-	issueNumber: number,
-): Promise<IssueComment[]> {
-	const request = context.repo({
-		issue_number: issueNumber,
-	});
-	const { data: comments } =
-		await context.octokit.rest.issues.listComments(request);
-	return comments;
-}
+// // https://octokit.github.io/rest.js/v18/#issues-list-comments
+// // https://docs.github.com/en/rest/issues/comments#list-issue-comments
+// export async function listIssueComments(
+// 	context: any,
+// 	issueNumber: number,
+// ): Promise<IssueComment[]> {
+// 	const request = context.repo({
+// 		issue_number: issueNumber,
+// 	});
+// 	const { data: comments } =
+// 		await context.octokit.rest.issues.listComments(request);
+// 	return comments;
+// }
 
-// https://octokit.github.io/rest.js/v18/#issues-create-comment
-// https://docs.github.com/en/rest/issues/comments#create-an-issue-comment
-export async function createIssueComment(
-	context: any,
-	issueNumber: number,
-	body: string,
-): Promise<IssueComment> {
-	const request = context.repo({
-		issue_number: issueNumber,
-		body,
-	});
-	const { data: comment } =
-		await context.octokit.rest.issues.createComment(request);
-	return comment;
-}
+// // https://octokit.github.io/rest.js/v18/#issues-create-comment
+// // https://docs.github.com/en/rest/issues/comments#create-an-issue-comment
+// export async function createIssueComment(
+// 	context: any,
+// 	issueNumber: number,
+// 	body: string,
+// ): Promise<IssueComment> {
+// 	const request = context.repo({
+// 		issue_number: issueNumber,
+// 		body,
+// 	});
+// 	const { data: comment } =
+// 		await context.octokit.rest.issues.createComment(request);
+// 	return comment;
+// }
 
 // // https://octokit.github.io/rest.js/v18/#issues-delete-comment
 // // https://docs.github.com/en/rest/issues/comments#delete-an-issue-comment
@@ -216,3 +224,69 @@ export async function createIssueComment(
 // 	});
 // 	await context.octokit.rest.issues.deleteComment(request);
 // }
+
+// // https://octokit.github.io/rest.js/v18/#orgs-list-for-user
+// // https://docs.github.com/en/rest/orgs/orgs#list-organizations-for-a-user
+// // https://octokit.github.io/rest.js/v18/#teams-list-for-authenticated-user
+// // https://docs.github.com/en/rest/teams/teams#list-teams-for-the-authenticated-user
+// export async function getUserMemberships(context: any, username: string) {
+// 	const orgs = await context.octokit.orgs.listForUser({ username });
+// 	const teams = await context.octokit.teams.listForAuthenticatedUser({
+// 		username,
+// 	});
+// 	return {
+// 		organizations: orgs.data.map((org: { login: string }) => ({
+// 			login: org.login,
+// 		})),
+// 		teams: teams.data.map(
+// 			(team: { slug: string; organization: { login: string } }) => ({
+// 				slug: team.slug,
+// 				organization: team.organization.login,
+// 			}),
+// 		),
+// 	};
+// }
+
+// // https://octokit.github.io/rest.js/v18/#repos-create-deployment-status
+// // https://docs.github.com/en/rest/deployments/statuses#create-a-deployment-status
+// export async function createDeploymentStatus(
+// 	context: any,
+// 	deploymentId: number,
+// 	state: 'success' | 'failure',
+// 	environment: string,
+// 	description: string,
+// ): Promise<void> {
+// 	const request = context.repo({
+// 		deployment_id: deploymentId,
+// 		state,
+// 		environment,
+// 		description,
+// 	});
+// 	await context.octokit.rest.repos.createDeploymentStatus(request);
+// }
+
+// https://octokit.github.io/rest.js/v21/#orgs-list-members
+// https://docs.github.com/en/rest/orgs/members#list-organization-members
+export async function listOrganizationMembers(
+	context: any,
+	org: string,
+): Promise<User[]> {
+	const { data: members } = await context.octokit.rest.orgs.listMembers({
+		org,
+	});
+	return members;
+}
+
+// https://octokit.github.io/rest.js/v21/#teams-list-members-in-org
+// https://docs.github.com/en/rest/teams/members#list-team-members
+export async function listTeamMembers(
+	context: any,
+	org: string,
+	team: string,
+): Promise<User[]> {
+	const { data: members } = await context.octokit.rest.teams.listMembersInOrg({
+		org,
+		team_slug: team,
+	});
+	return members;
+}
