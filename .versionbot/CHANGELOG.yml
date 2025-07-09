@@ -1,4 +1,17 @@
 - commits:
+    - subject: Drop NodeJS v18
+      hash: 794057fdfa6c76b9c0a2201887a9e6c9463d4a4e
+      body: ""
+      footer:
+        Change-type: minor
+        change-type: minor
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.3.0
+  title: ""
+  date: 2025-07-09T18:02:09.009Z
+- commits:
     - subject: Lock file maintenance
       hash: 3e5d4e299df5eea0e82a5851fd97610961ab3171
       body: |
