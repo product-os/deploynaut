@@ -1,0 +1,16 @@
+# Environment-based conditions testing
+policy:
+  approval:
+    - env-rule
+
+approval_rules:
+  - name: env-rule
+    if:
+      environment:
+        matches:
+          - production
+          - staging
+    requires:
+      count: 1
+    methods:
+      github_review: true
