@@ -1,4 +1,42 @@
 - commits:
+    - subject: Implement policy-driven deployment approvals with YAML configuration
+      hash: ca26dee2a98784c03992be6ba17044a0d4879ff1
+      body: >
+        Introduces a comprehensive policy evaluation system that replaces the
+        previous
+
+        hardcoded approval logic with flexible, configurable rules defined in
+        YAML.
+
+
+        Key changes:
+
+        - Add PolicyEvaluator with support for AND/OR rule combinations
+
+        - Implement signature validation using GitHub's verification status
+
+        - Support multiple approval methods (reviews, comments)
+
+        - Support multiple rule conditions (authors, environments, signatures)
+
+        - Comprehensive test suite with policy configuration fixtures
+
+
+        The new system enables secure, customizable deployment approval
+        workflows
+
+        while maintaining TOCTOU attack prevention and actor separation
+        requirements.
+      footer:
+        Change-type: minor
+        change-type: minor
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.2.0
+  title: ""
+  date: 2025-07-09T04:46:22.342Z
+- commits:
     - subject: Lock file maintenance
       hash: 9361a65a33f47bfdb57eac6351196fe6b28a65c3
       body: |
