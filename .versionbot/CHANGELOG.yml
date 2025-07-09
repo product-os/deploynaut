@@ -1,4 +1,16 @@
 - commits:
+    - subject: Lock file maintenance
+      hash: 3e5d4e299df5eea0e82a5851fd97610961ab3171
+      body: |
+        Update 
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.2.1
+  title: ""
+  date: 2025-07-09T05:19:04.343Z
+- commits:
     - subject: Implement policy-driven deployment approvals with YAML configuration
       hash: ca26dee2a98784c03992be6ba17044a0d4879ff1
       body: >
