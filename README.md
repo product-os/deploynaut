@@ -120,6 +120,10 @@ Each approval rule supports:
 2. **Organization-level**: `.github/deploynaut.yml` in the organization's `.github` repository
 3. **Fallback**: If no configuration found, all deployments require manual approval
 
+### Policy Schema
+
+The policy configuration schema is based on a subset of the configuration used by [policy-bot](https://github.com/palantir/policy-bot) due to the large overlap in functionality. While policy-bot approves pull requests, deploynaut approves deployments using similar approval rules and conditions.
+
 ## Setup
 
 ```sh
