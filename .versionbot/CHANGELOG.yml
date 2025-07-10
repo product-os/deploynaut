@@ -1,4 +1,16 @@
 - commits:
+    - subject: Update dependency smee-client to v4
+      hash: 9086742b29f0a36eb5c48c600f824d4e2701e22d
+      body: |
+        Update smee-client from 3.1.1 to 4.3.1
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.3.2
+  title: ""
+  date: 2025-07-10T14:26:57.251Z
+- commits:
     - subject: Allow web-flow as committer on renovate PRs
       hash: 3dd98e7d5a5365f143ab1e16d1db87d7e0f0fad2
       body: >
