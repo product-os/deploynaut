@@ -1,4 +1,16 @@
 - commits:
+    - subject: Update dependency lint-staged to v16
+      hash: e7b2381ddaa8df0de6ca5810aae2d814577471cb
+      body: |
+        Update lint-staged from 15.5.2 to 16.1.2
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.3.3
+  title: ""
+  date: 2025-07-10T15:18:17.826Z
+- commits:
     - subject: Update dependency smee-client to v4
       hash: 9086742b29f0a36eb5c48c600f824d4e2701e22d
       body: |
