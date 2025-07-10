@@ -51,6 +51,10 @@ approval_rules:
         users:
           - "balena-renovate[bot]"
           - "flowzone-app[bot]"
+          # This account is the Git committer for all web commits (merge/revert/edit/etc...) made on GitHub.com.
+          # https://github.com/web-flow
+          # Removate rebases via web-flow so we must allow it as a committer. It will never be an author.
+          - "web-flow"
       # Only applies to the test environment
       environment:
         matches:
