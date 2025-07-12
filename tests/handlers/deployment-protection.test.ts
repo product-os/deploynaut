@@ -39,6 +39,11 @@ const orgApprovalFixture = fs.readFileSync(
 	'utf-8',
 );
 
+const refPatternsFixture = fs.readFileSync(
+	path.join(__dirname, '../fixtures/policy-configs/ref-patterns.yml'),
+	'utf-8',
+);
+
 // Test fixtures
 interface TestFixture {
 	deployment_protection_rule: {
@@ -48,6 +53,7 @@ interface TestFixture {
 			sha: string;
 			environment: string;
 			id: number;
+			ref?: string;
 		};
 		deployment_callback_url: string;
 		event: string;
@@ -826,6 +832,172 @@ describe('Deployment Protection Rule Handler', () => {
 				payload: testFixtures.deployment_protection_rule,
 			}),
 		).rejects.toThrow();
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('approves deployment when ref matches auto-approve pattern', async () => {
+		nock.cleanAll();
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, refPatternsFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, {
+				sha: 'test-sha',
+				author: { id: 123, login: 'test-user' },
+				committer: { id: 123, login: 'test-user' },
+				commit: {
+					verification: { verified: false, reason: 'unsigned' },
+				},
+			})
+			.post(
+				'/repos/test-org/test-repo/actions/runs/123/deployment_protection_rule',
+			)
+			.reply(200);
+
+		const payload = {
+			...testFixtures.deployment_protection_rule,
+			deployment: {
+				...testFixtures.deployment_protection_rule.deployment,
+				ref: 'main',
+			},
+		};
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('approves deployment when ref matches master pattern', async () => {
+		nock.cleanAll();
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, refPatternsFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, {
+				sha: 'test-sha',
+				author: { id: 123, login: 'test-user' },
+				committer: { id: 123, login: 'test-user' },
+				commit: {
+					verification: { verified: false, reason: 'unsigned' },
+				},
+			})
+			.post(
+				'/repos/test-org/test-repo/actions/runs/123/deployment_protection_rule',
+			)
+			.reply(200);
+
+		const payload = {
+			...testFixtures.deployment_protection_rule,
+			deployment: {
+				...testFixtures.deployment_protection_rule.deployment,
+				ref: 'master',
+			},
+		};
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('approves deployment when ref matches pattern and environment matches', async () => {
+		nock.cleanAll();
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, refPatternsFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, {
+				sha: 'test-sha',
+				author: { id: 123, login: 'test-user' },
+				committer: { id: 123, login: 'test-user' },
+				commit: {
+					verification: { verified: false, reason: 'unsigned' },
+				},
+			})
+			.get('/repos/test-org/test-repo/pulls/1/reviews')
+			.reply(200, [])
+			.get('/repos/test-org/test-repo/pulls/1/commits')
+			.reply(200, [
+				{
+					sha: 'test-sha',
+					author: { id: 123, login: 'test-user' },
+				},
+			]);
+
+		const payload = {
+			...testFixtures.deployment_protection_rule,
+			deployment: {
+				...testFixtures.deployment_protection_rule.deployment,
+				ref: 'feature/new-feature',
+			},
+		};
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('requires manual approval when ref does not match auto-approve patterns', async () => {
+		nock.cleanAll();
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, refPatternsFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, {
+				sha: 'test-sha',
+				author: { id: 123, login: 'test-user' },
+				committer: { id: 123, login: 'test-user' },
+				commit: {
+					verification: { verified: false, reason: 'unsigned' },
+				},
+			})
+			.get('/repos/test-org/test-repo/pulls/1/reviews')
+			.reply(200, [])
+			.get('/repos/test-org/test-repo/pulls/1/commits')
+			.reply(200, [
+				{
+					sha: 'test-sha',
+					author: { id: 123, login: 'test-user' },
+				},
+			]);
+
+		const payload = {
+			...testFixtures.deployment_protection_rule,
+			deployment: {
+				...testFixtures.deployment_protection_rule.deployment,
+				ref: 'feature/new-feature',
+			},
+		};
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload,
+		});
 
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});

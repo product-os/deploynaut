@@ -202,13 +202,34 @@ export class PolicyEvaluator {
 	}
 
 	/**
-	 * Evaluate rule conditions (environment, signatures, authorship)
+	 * Evaluate rule conditions (ref patterns, environment, signatures, authorship)
 	 * @param conditions The conditions to evaluate
 	 * @returns true if all conditions are met, false otherwise
 	 */
 	private async evaluateConditions(
 		conditions: RuleCondition,
 	): Promise<boolean> {
+		// Check ref pattern conditions
+		if (conditions.ref_patterns) {
+			const deploymentRef = this.context.deployment?.ref;
+			if (!deploymentRef) {
+				this.logger.warn('No deployment ref found in context');
+				return false;
+			}
+
+			// Check if deployment ref matches any of the patterns
+			const matches = conditions.ref_patterns.some((pattern) => {
+				return this.matchesPattern(deploymentRef, pattern);
+			});
+
+			if (!matches) {
+				this.logger.warn(
+					`Deployment ref "${deploymentRef}" does not match any allowed patterns: ${conditions.ref_patterns.join(', ')}`,
+				);
+				return false;
+			}
+		}
+
 		// Check environment conditions
 		if (conditions.environment) {
 			const envName = this.context.environment?.name;
@@ -345,18 +366,6 @@ export class PolicyEvaluator {
 				}
 			}
 
-			function parsePattern(pattern: string): RegExp {
-				// If pattern is wrapped in forward slashes, treat as regex
-				if (pattern.startsWith('/') && pattern.match(/\/[gimuy]*$/)) {
-					const match = pattern.match(/^\/(.+)\/([gimuy]*)$/);
-					if (match) {
-						return new RegExp(match[1], match[2]);
-					}
-				}
-				// Otherwise treat as literal string match (case-insensitive)
-				return new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-			}
-
 			// Check for comment patterns
 			if (
 				methods?.github_review_comment_patterns &&
@@ -365,8 +374,7 @@ export class PolicyEvaluator {
 			) {
 				return methods.github_review_comment_patterns.some((pattern) => {
 					try {
-						const regex = parsePattern(pattern);
-						const match = regex.test(review.body ?? '');
+						const match = this.matchesPattern(review.body ?? '', pattern);
 						if (match) {
 							this.logger.info(
 								`Review ${review.id} pattern "${pattern}" matches: ${review.body}`,
@@ -524,5 +532,43 @@ export class PolicyEvaluator {
 			`Commit "${commit.sha}" signed by an unauthorized user: ${committerLogin}`,
 		);
 		return false;
+	}
+
+	/**
+	 * Parse a pattern string into a RegExp, supporting regex syntax, glob patterns, and literal matching
+	 * @param pattern The pattern to parse (supports /regex/flags format, glob patterns with *, or literal strings)
+	 * @returns RegExp for pattern matching
+	 */
+	private parsePattern(pattern: string): RegExp {
+		// If pattern is wrapped in forward slashes, treat as regex
+		if (pattern.startsWith('/') && pattern.match(/\/[gimuy]*$/)) {
+			const match = pattern.match(/^\/(.+)\/([gimuy]*)$/);
+			if (match) {
+				return new RegExp(match[1], match[2]);
+			}
+		}
+
+		// Convert glob pattern to regex
+		// Escape regex special characters except * and ?
+		let regexPattern = pattern
+			.replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex chars except * and ?
+			.replace(/\*/g, '.*') // Convert glob * to regex .*
+			.replace(/\?/g, '.'); // Convert glob ? to regex .
+
+		// Anchor the pattern to match the entire string
+		regexPattern = `^${regexPattern}$`;
+
+		return new RegExp(regexPattern, 'i');
+	}
+
+	/**
+	 * Test if a value matches a pattern
+	 * @param value The value to test
+	 * @param pattern The pattern to match against
+	 * @returns true if pattern matches
+	 */
+	private matchesPattern(value: string, pattern: string): boolean {
+		const regex = this.parsePattern(pattern);
+		return regex.test(value);
 	}
 }

@@ -19,6 +19,7 @@ export interface NamedApprovalRule {
 }
 
 export interface RuleCondition {
+	ref_patterns?: string[];
 	environment?: {
 		matches?: string[];
 		not_matches?: string[];
@@ -87,6 +88,7 @@ export interface PolicyContext {
 		name: string;
 	};
 	deployment?: {
+		ref?: string;
 		environment?: string;
 		event?: string;
 		commit: Commit;

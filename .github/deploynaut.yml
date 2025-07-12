@@ -5,6 +5,7 @@ policy:
       - security-team or reliability has approved
       - has valid signatures by security-team or reliability
       - author is renovate-bot or flowzone-app
+      - deployment ref is main or master
 
 # the list of rules
 approval_rules:
@@ -59,5 +60,14 @@ approval_rules:
       environment:
         matches:
           - test
+    requires:
+      count: 0
+
+  # Do not require approvals for deployments from main or master branches
+  - name: deployment ref is main or master
+    if:
+      ref_patterns:
+        - main
+        - master
     requires:
       count: 0
