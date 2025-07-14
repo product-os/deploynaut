@@ -16,6 +16,8 @@ interface WorkflowRun {
 	actor: { id: number };
 	head_sha: string;
 	created_at: string;
+	head_branch?: string;
+	event?: string;
 }
 
 interface Commit {
@@ -145,6 +147,11 @@ const deployCommentFixture = fs.readFileSync(
 
 const orgApprovalFixture = fs.readFileSync(
 	path.join(__dirname, '../fixtures/policy-configs/org-approval-only.yml'),
+	'utf-8',
+);
+
+const refPatternsFixture = fs.readFileSync(
+	path.join(__dirname, '../fixtures/policy-configs/ref-patterns.yml'),
 	'utf-8',
 );
 
@@ -852,6 +859,118 @@ describe('Pull Request Review Handler', () => {
 				payload,
 			}),
 		).rejects.toThrow();
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('approves workflow for feature branch when reviewer provides approval', async () => {
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, refPatternsFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [
+					{
+						...testFixtures.workflow_run,
+						head_branch: 'feature/new-feature',
+						event: 'pull_request',
+					},
+				],
+			})
+			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.reply(200, [
+				{
+					environment: { name: 'test-environment' },
+					current_user_can_approve: true,
+				},
+			])
+			.post(
+				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+			)
+			.reply(200)
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit]);
+
+		const payload = {
+			...testFixtures.pull_request_review,
+			review: {
+				...testFixtures.pull_request_review.review,
+				state: 'APPROVED',
+				user: {
+					login: 'authorized-reviewer',
+					id: 999,
+				},
+			},
+		};
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	// This is actually approving the second rule in the fixture, which is a manual approval rule,
+	// since the first rule is an auto-approval rule that is not triggered by a review and has no review methods.
+	test('approves workflow for main branch when reviewer provides approval', async () => {
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, refPatternsFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
+			.get('/repos/test-org/test-repo/actions/runs')
+			.query(true)
+			.reply(200, {
+				workflow_runs: [
+					{
+						...testFixtures.workflow_run,
+						head_branch: 'main',
+						event: 'pull_request',
+					},
+				],
+			})
+			.get('/repos/test-org/test-repo/actions/runs/1234/pending_deployments')
+			.reply(200, [
+				{
+					environment: { name: 'test-environment' },
+					current_user_can_approve: true,
+				},
+			])
+			.post(
+				'/repos/test-org/test-repo/actions/runs/1234/deployment_protection_rule',
+			)
+			.reply(200)
+			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit]);
+
+		const payload = {
+			...testFixtures.pull_request_review,
+			review: {
+				...testFixtures.pull_request_review.review,
+				state: 'APPROVED',
+				user: {
+					login: 'authorized-reviewer',
+					id: 999,
+				},
+			},
+		};
+
+		await probot.receive({
+			name: 'pull_request_review',
+			payload,
+		});
 
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});

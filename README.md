@@ -61,12 +61,22 @@ Create a `.github/deploynaut.yml` file in your organization's `.github` reposito
 policy:
   approval:
     - or:
+        - auto-approve-main
         - team-has-approved
         - has-valid-signatures
         - authored-by-bot
 
 # Approval rule definitions
 approval_rules:
+  - name: auto-approve-main
+    if:
+      ref_patterns:
+        - main
+        - master
+        - release/*
+    requires:
+      count: 0
+
   - name: team-has-approved
     requires:
       count: 1
@@ -98,6 +108,7 @@ Each approval rule supports:
 
 #### Conditions (`if`)
 
+- **`ref_patterns`**: Match deployment ref (branch/tag) against regex patterns
 - **`has_valid_signatures_by`**: Commits signed by authorized users/teams/orgs
 - **`only_has_contributors_in`**: Commits authored and committed by authorized users or team members
 - **`environment`**: Environment-specific conditions

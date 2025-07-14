@@ -1469,4 +1469,189 @@ describe('PolicyEvaluator', () => {
 			);
 		});
 	});
+
+	describe('ref patterns evaluation', () => {
+		test('auto-approves deployment for matching ref pattern', async () => {
+			const config: PolicyConfig = {
+				policy: {
+					approval: ['auto-approve-main'],
+				},
+				approval_rules: [
+					{
+						name: 'auto-approve-main',
+						if: {
+							ref_patterns: ['main', 'master', 'release/*'],
+						},
+						requires: {
+							count: 0,
+						},
+					},
+				],
+			};
+
+			const context: PolicyContext = {
+				environment: {
+					name: 'production',
+				},
+				deployment: {
+					ref: 'main',
+					environment: 'production',
+					event: 'push',
+					commit: { sha: 'abc123' },
+				},
+				commits: [],
+				reviews: [],
+			};
+
+			const evaluator = new PolicyEvaluator(config, mockGithubContext);
+			expect(await evaluator.evaluate(context)).toBe(true);
+		});
+
+		test('rejects deployment for non-matching ref pattern', async () => {
+			const config: PolicyConfig = {
+				policy: {
+					approval: ['auto-approve-main'],
+				},
+				approval_rules: [
+					{
+						name: 'auto-approve-main',
+						if: {
+							ref_patterns: ['main', 'master'],
+						},
+						requires: {
+							count: 0,
+						},
+					},
+				],
+			};
+
+			const context: PolicyContext = {
+				environment: {
+					name: 'production',
+				},
+				deployment: {
+					ref: 'feature/new-feature',
+					environment: 'production',
+					event: 'push',
+					commit: { sha: 'abc123' },
+				},
+				commits: [],
+				reviews: [],
+			};
+
+			const evaluator = new PolicyEvaluator(config, mockGithubContext);
+			expect(await evaluator.evaluate(context)).toBe(false);
+		});
+
+		test('supports regex patterns for refs', async () => {
+			const config: PolicyConfig = {
+				policy: {
+					approval: ['regex-pattern'],
+				},
+				approval_rules: [
+					{
+						name: 'regex-pattern',
+						if: {
+							ref_patterns: [
+								'/^(main|master)$/',
+								'/^release/v\\d+\\.\\d+\\.\\d+$/',
+							],
+						},
+						requires: {
+							count: 0,
+						},
+					},
+				],
+			};
+
+			const context: PolicyContext = {
+				environment: {
+					name: 'production',
+				},
+				deployment: {
+					ref: 'release/v1.2.3',
+					environment: 'production',
+					event: 'push',
+					commit: { sha: 'abc123' },
+				},
+				commits: [],
+				reviews: [],
+			};
+
+			const evaluator = new PolicyEvaluator(config, mockGithubContext);
+			expect(await evaluator.evaluate(context)).toBe(true);
+		});
+
+		test('supports glob patterns for refs', async () => {
+			const config: PolicyConfig = {
+				policy: {
+					approval: ['release-pattern'],
+				},
+				approval_rules: [
+					{
+						name: 'release-pattern',
+						if: {
+							ref_patterns: ['release/*', 'hotfix/*'],
+						},
+						requires: {
+							count: 0,
+						},
+					},
+				],
+			};
+
+			const context: PolicyContext = {
+				environment: {
+					name: 'production',
+				},
+				deployment: {
+					ref: 'release/v1.2.3',
+					environment: 'production',
+					event: 'push',
+					commit: { sha: 'abc123' },
+				},
+				commits: [],
+				reviews: [],
+			};
+
+			const evaluator = new PolicyEvaluator(config, mockGithubContext);
+			expect(await evaluator.evaluate(context)).toBe(true);
+		});
+
+		test('returns false when no ref is provided', async () => {
+			const config: PolicyConfig = {
+				policy: {
+					approval: ['ref-required'],
+				},
+				approval_rules: [
+					{
+						name: 'ref-required',
+						if: {
+							ref_patterns: ['main'],
+						},
+						requires: {
+							count: 0,
+						},
+					},
+				],
+			};
+
+			const context: PolicyContext = {
+				environment: {
+					name: 'production',
+				},
+				deployment: {
+					// ref is undefined
+					environment: 'production',
+					event: 'push',
+					commit: { sha: 'abc123' },
+				},
+				commits: [],
+				reviews: [],
+			};
+
+			const evaluator = new PolicyEvaluator(config, mockGithubContext);
+			expect(await evaluator.evaluate(context)).toBe(false);
+		});
+	});
 });

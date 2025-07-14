@@ -48,6 +48,7 @@ export async function handleDeploymentProtectionRuleRequested(
 			name: environment,
 		},
 		deployment: {
+			ref: deployment.ref,
 			environment: environment,
 			event: context.payload.event,
 			commit: {

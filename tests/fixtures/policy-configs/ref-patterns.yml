@@ -1,0 +1,22 @@
+# Ref patterns testing with auto-approval for trusted branches
+policy:
+  approval:
+    - or:
+        - auto-approve-main
+        - manual-approval
+
+approval_rules:
+  - name: auto-approve-main
+    if:
+      ref_patterns:
+        - main
+        - master
+    requires:
+      count: 0
+
+  - name: manual-approval
+    requires:
+      count: 1
+      users: ['authorized-reviewer']
+    methods:
+      github_review: true

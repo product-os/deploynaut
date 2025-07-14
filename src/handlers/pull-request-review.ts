@@ -119,6 +119,7 @@ export async function handlePullRequestReviewSubmitted(
 					const isApproved = await evaluator.evaluate({
 						...approvalContext,
 						deployment: {
+							ref: workflowRun.head_branch,
 							environment: environmentName,
 							event: workflowRun.event,
 							commit: {
