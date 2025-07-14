@@ -1,4 +1,17 @@
 - commits:
+    - subject: Add basejump-app to valid-signatures rule
+      hash: 65a7c6298547348a1136438f29c01c83a040bc29
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.3.5
+  title: ""
+  date: 2025-07-14T20:26:31.966Z
+- commits:
     - subject: Lock file maintenance
       hash: edd5fa10d89dc1ced1e133164b97d40417c8f75e
       body: |
