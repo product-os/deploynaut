@@ -29,7 +29,8 @@ approval_rules:
       # the authenticated signatures are attributed to a user in the users list
       # or belong to a user in any of the listed organizations or teams.
       has_valid_signatures_by:
-        users: []
+        users:
+          - "basejump-app"
         organizations: []
         teams:
           - "product-os/security-team"
