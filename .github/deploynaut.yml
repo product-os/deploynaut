@@ -24,13 +24,14 @@ approval_rules:
 
   - name: has valid signatures by security-team or reliability
     if:
-      # "has_valid_signatures_by" is satisfied if the commits in the pull request
-      # all have git commit signatures that have been verified by GitHub, and
-      # the authenticated signatures are attributed to a user in the users list
-      # or belong to a user in any of the listed organizations or teams.
-      has_valid_signatures_by:
-        users:
-          - "basejump-app"
+      # "has_valid_signatures" is satisfied when all relevant commits
+      # all have git commit signatures that have been verified by GitHub
+      has_valid_signatures: true
+      # "only_has_authors_in" is satisfied when all relevant commits are
+      # authored by users in the users list or that belong to any of the
+      # listed organizations or teams.
+      only_has_authors_in:
+        users: []
         organizations: []
         teams:
           - "product-os/security-team"
@@ -45,9 +46,12 @@ approval_rules:
   # Do not require approvals for renovate or flowzone
   - name: author is renovate-bot or flowzone-app
     if:
-      # "only_has_contributors_in" is satisfied if all of the commits on the
-      # pull request are authored and committed by users in the users list or
-      # that belong to any of the listed organizations or teams.
+      # "has_valid_signatures" is satisfied when all relevant commits
+      # all have git commit signatures that have been verified by GitHub
+      has_valid_signatures: true
+      # "only_has_contributors_in" is satisfied when all relevant commits are
+      # authored and committed by users in the users list or that belong to any
+      # of the listed organizations or teams.
       only_has_contributors_in:
         users:
           - "balena-renovate[bot]"
