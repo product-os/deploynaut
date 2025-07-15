@@ -23,12 +23,18 @@ export interface RuleCondition {
 		matches?: string[];
 		not_matches?: string[];
 	};
+	has_valid_signatures?: boolean;
 	has_valid_signatures_by?: {
 		users?: string[];
 		organizations?: string[];
 		teams?: string[];
 	};
 	only_has_contributors_in?: {
+		users?: string[];
+		organizations?: string[];
+		teams?: string[];
+	};
+	only_has_authors_in?: {
 		users?: string[];
 		organizations?: string[];
 		teams?: string[];

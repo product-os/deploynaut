@@ -9,6 +9,7 @@ import type {
 	ApprovalMethods,
 } from './types.js';
 import { listTeamMembers, listOrganizationMembers } from '../client.js';
+import type { Commit } from './types.js';
 
 /**
  * Logger interface for outputting evaluation messages
@@ -206,44 +207,69 @@ export class PolicyEvaluator {
 	 * @param conditions The conditions to evaluate
 	 * @returns true if all conditions are met, false otherwise
 	 */
-	private async evaluateConditions(
-		conditions: RuleCondition,
-	): Promise<boolean> {
-		// Check environment conditions
-		if (conditions.environment) {
-			const envName = this.context.environment?.name;
-			if (!envName) {
-				this.logger.warn('No environment name found in context');
-				return false;
-			}
-
-			// Check if environment matches allowed list
-			if (
-				conditions.environment.matches &&
-				!conditions.environment.matches.includes(envName)
-			) {
-				this.logger.warn(
-					`Environment "${envName}" does not match any allowed environments`,
-				);
-				return false;
-			}
-
-			// Check if environment is in excluded list
-			if (conditions.environment.not_matches?.includes(envName)) {
-				this.logger.warn(
-					`Environment "${envName}" does not match any allowed environments`,
-				);
-				return false;
-			}
+	private evaluateEnvironmentCondition(
+		condition: NonNullable<RuleCondition['environment']>,
+	): boolean {
+		const envName = this.context.environment?.name;
+		if (!envName) {
+			this.logger.warn('No environment name found in context');
+			return false;
 		}
 
-		if (conditions.has_valid_signatures_by) {
-			const commits = this.context.commits;
-			const { users, organizations, teams } =
-				conditions.has_valid_signatures_by;
+		// Check if environment matches allowed list
+		if (condition.matches && !condition.matches.includes(envName)) {
+			this.logger.warn(
+				`Environment "${envName}" does not match any allowed environments`,
+			);
+			return false;
+		}
 
-			// Check signature verification using GitHub's verification status
-			for (const commit of commits) {
+		// Check if environment is in excluded list
+		if (condition.not_matches?.includes(envName)) {
+			this.logger.warn(
+				`Environment "${envName}" is explicitly excluded by the policy`,
+			);
+			return false;
+		}
+
+		return true;
+	}
+
+	private evaluateHasValidSignaturesCondition(): boolean {
+		const commits = this.context.commits;
+
+		if (commits.length === 0) {
+			this.logger.warn('No commits found for signature validation');
+			return false;
+		}
+		const results = commits.map((commit: Commit) => {
+			// Check if GitHub verified the signature
+			if (!commit.verification?.verified) {
+				this.logger.debug(
+					`Commit "${commit.sha}" signature not verified by GitHub: ${commit.verification?.reason ?? 'unknown'}`,
+				);
+				return false;
+			}
+			this.logger.debug(
+				`Commit "${commit.sha}" signature verified by GitHub: ${commit.verification?.reason ?? 'unknown'}`,
+			);
+			return true;
+		});
+
+		const result = results.every(Boolean);
+		this.logger.info(`Evaluated condition has_valid_signatures: ${result}`);
+		return result;
+	}
+
+	private async evaluateHasValidSignaturesByCondition(
+		condition: NonNullable<RuleCondition['has_valid_signatures_by']>,
+	): Promise<boolean> {
+		const commits = this.context.commits;
+		const { users, organizations, teams } = condition;
+
+		// Check signature verification using GitHub's verification status
+		const results = await Promise.all(
+			commits.map(async (commit: Commit) => {
 				const isValid = await this.validateCommitSignature(commit, {
 					users,
 					organizations,
@@ -253,49 +279,139 @@ export class PolicyEvaluator {
 				if (!isValid) {
 					return false;
 				}
-			}
+				return true;
+			}),
+		);
+
+		const result = results.every(Boolean);
+		this.logger.info(`Evaluated condition has_valid_signatures_by: ${result}`);
+		return result;
+	}
+
+	private async evaluateOnlyHasAuthorsInCondition(
+		condition: NonNullable<RuleCondition['only_has_authors_in']>,
+	): Promise<boolean> {
+		const { users, organizations, teams } = condition;
+		const commits = this.context.commits;
+
+		// If there are no commits, return false
+		if (commits.length === 0) {
+			return false;
+		}
+
+		// Check that all commits were authored by the specified users/organizations/teams
+		const results = await Promise.all(
+			commits.map(async (commit: Commit) => {
+				return await this.isUserInAny(
+					commit.author?.login ?? '',
+					users ?? [],
+					organizations ?? [],
+					teams ?? [],
+				);
+			}),
+		);
+
+		const result = results.every(Boolean);
+		this.logger.info(
+			`Evaluated condition only_has_authors_in: ${JSON.stringify(condition)}: ${result}`,
+		);
+		return result;
+	}
+
+	private async evaluateOnlyHasContributorsInCondition(
+		condition: NonNullable<RuleCondition['only_has_contributors_in']>,
+	): Promise<boolean> {
+		const { users, organizations, teams } = condition;
+		const commits = this.context.commits;
+
+		// If there are no commits, return false
+		if (commits.length === 0) {
+			return false;
+		}
+
+		// Check that all commits were authored and committed by the specified users/organizations/teams
+		const results = await Promise.all(
+			commits.map(async (commit: Commit) => {
+				const author = commit.author;
+				const committer = commit.committer;
+				const isAuthorAuthorized = await this.isUserInAny(
+					author?.login ?? '',
+					users ?? [],
+					organizations ?? [],
+					teams ?? [],
+				);
+				const isCommitterAuthorized = await this.isUserInAny(
+					committer?.login ?? '',
+					users ?? [],
+					organizations ?? [],
+					teams ?? [],
+				);
+				return isAuthorAuthorized && isCommitterAuthorized;
+			}),
+		);
+
+		const result = results.every(Boolean);
+		this.logger.info(
+			`Evaluated condition only_has_contributors_in: ${JSON.stringify(condition)}: ${result}`,
+		);
+		return result;
+	}
+
+	private async evaluateConditions(
+		conditions: RuleCondition,
+	): Promise<boolean> {
+		const conditionPromises: Array<Promise<boolean>> = [];
+
+		// Add condition promises based on what's present in the conditions object
+		if (conditions.environment) {
+			conditionPromises.push(
+				Promise.resolve(
+					this.evaluateEnvironmentCondition(conditions.environment),
+				),
+			);
+		}
+
+		if (conditions.has_valid_signatures) {
+			conditionPromises.push(
+				Promise.resolve(this.evaluateHasValidSignaturesCondition()),
+			);
+		}
+
+		if (conditions.has_valid_signatures_by) {
+			conditionPromises.push(
+				this.evaluateHasValidSignaturesByCondition(
+					conditions.has_valid_signatures_by,
+				),
+			);
+		}
+
+		if (conditions.only_has_authors_in) {
+			conditionPromises.push(
+				this.evaluateOnlyHasAuthorsInCondition(conditions.only_has_authors_in),
+			);
 		}
 
 		if (conditions.only_has_contributors_in) {
-			const { users, organizations, teams } =
-				conditions.only_has_contributors_in;
-			const commits = this.context.commits;
-
-			// If there are no commits, return false
-			if (commits.length === 0) {
-				return false;
-			}
-
-			// Check that all commits were authored and committed by the specified users/organizations/teams
-			const results = await Promise.all(
-				commits.map(
-					async (commit: {
-						sha: string;
-						author?: { login?: string };
-						committer?: { login?: string };
-					}) => {
-						const author = commit.author;
-						const committer = commit.committer;
-						const isAuthorAuthorized = await this.isUserInAny(
-							author?.login ?? '',
-							users ?? [],
-							organizations ?? [],
-							teams ?? [],
-						);
-						const isCommitterAuthorized = await this.isUserInAny(
-							committer?.login ?? '',
-							users ?? [],
-							organizations ?? [],
-							teams ?? [],
-						);
-						return isAuthorAuthorized && isCommitterAuthorized;
-					},
+			conditionPromises.push(
+				this.evaluateOnlyHasContributorsInCondition(
+					conditions.only_has_contributors_in,
 				),
 			);
-			return results.every(Boolean);
 		}
 
-		return true;
+		// If no conditions were specified, return true
+		if (conditionPromises.length === 0) {
+			return true;
+		}
+
+		// Wait for all conditions to complete and check if all passed
+		const results = await Promise.all(conditionPromises);
+		const allConditionsPassed = results.every(Boolean);
+
+		this.logger.info(
+			`All conditions evaluation result: ${allConditionsPassed} (${results.length} conditions checked)`,
+		);
+		return allConditionsPassed;
 	}
 
 	private async evaluateRequirements(

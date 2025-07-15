@@ -7,7 +7,10 @@ policy:
 approval_rules:
   - name: has valid signatures by test-users
     if:
-      # Checks signatures on all the commits in the pull request
+      # "has_valid_signatures_by" is satisfied when all relevant commits
+      # all have git commit signatures that have been verified by GitHub, and
+      # the authenticated signatures are attributed to a user in the users list
+      # or belong to a user in any of the listed organizations or teams.
       has_valid_signatures_by:
         users: []
         organizations: []
