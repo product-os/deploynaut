@@ -1,4 +1,36 @@
 - commits:
+    - subject: Add has_valid_signatures condition
+      hash: 8843f6f163d59ebcdb4b2c85cd1f3c4db0216358
+      body: |
+        This condition only checks the GitHub verification
+        property of the related commits, and does not require
+        any specific team membership policy.
+      footer:
+        Change-type: minor
+        change-type: minor
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+    - subject: Add condition only_has_authors_in
+      hash: 4f1d36743a2e169c697b1fba73bddfc3a1c43402
+      body: |
+        "only_has_authors_in" is satisfied when all relevant commits are
+        authored by users in the users list or that belong to any of the
+        listed organizations or teams.
+
+        This differs from "only_has_contributors_in" in that it does not
+        take into account the committers, and allows filtering on authors
+        only.
+      footer:
+        Change-type: minor
+        change-type: minor
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.4.0
+  title: ""
+  date: 2025-07-15T18:54:27.153Z
+- commits:
     - subject: Add basejump-app to valid-signatures rule
       hash: 65a7c6298547348a1136438f29c01c83a040bc29
       body: ""
