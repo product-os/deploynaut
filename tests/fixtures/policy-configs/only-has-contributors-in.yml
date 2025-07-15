@@ -7,9 +7,9 @@ policy:
 approval_rules:
   - name: was authored by test-bot
     if:
-      # "only_has_contributors_in" is satisfied if all of the commits on the
-      # pull request are authored and committed by users in the users list or
-      # that belong to any of the listed organizations or teams.
+      # "only_has_contributors_in" is satisfied when all relevant commits are
+      # authored and committed by users in the users list or that belong to any
+      # of the listed organizations or teams.
       only_has_contributors_in:
         users:
           - test-bot

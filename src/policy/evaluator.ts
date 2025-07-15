@@ -9,6 +9,7 @@ import type {
 	ApprovalMethods,
 } from './types.js';
 import { listTeamMembers, listOrganizationMembers } from '../client.js';
+import type { Commit } from './types.js';
 
 /**
  * Logger interface for outputting evaluation messages
@@ -256,6 +257,34 @@ export class PolicyEvaluator {
 			}
 		}
 
+		if (conditions.only_has_authors_in) {
+			const { users, organizations, teams } = conditions.only_has_authors_in;
+			// const commits = await compareCommits(this.githubContext, trustedBranch, this.context.commits[0].sha);
+			const commits = this.context.commits;
+
+			// If there are no commits, return false
+			if (commits.length === 0) {
+				return false;
+			}
+
+			// Check that all commits were authored by the specified users/organizations/teams
+			const results = await Promise.all(
+				commits.map(async (commit: Commit) => {
+					return await this.isUserInAny(
+						commit.author?.login ?? '',
+						users ?? [],
+						organizations ?? [],
+						teams ?? [],
+					);
+				}),
+			);
+
+			this.logger.info(
+				`Evaluated condition only_has_authors_in: ${JSON.stringify(conditions.only_has_authors_in)}: ${results.every(Boolean)}`,
+			);
+			return results.every(Boolean);
+		}
+
 		if (conditions.only_has_contributors_in) {
 			const { users, organizations, teams } =
 				conditions.only_has_contributors_in;
@@ -268,29 +297,27 @@ export class PolicyEvaluator {
 
 			// Check that all commits were authored and committed by the specified users/organizations/teams
 			const results = await Promise.all(
-				commits.map(
-					async (commit: {
-						sha: string;
-						author?: { login?: string };
-						committer?: { login?: string };
-					}) => {
-						const author = commit.author;
-						const committer = commit.committer;
-						const isAuthorAuthorized = await this.isUserInAny(
-							author?.login ?? '',
-							users ?? [],
-							organizations ?? [],
-							teams ?? [],
-						);
-						const isCommitterAuthorized = await this.isUserInAny(
-							committer?.login ?? '',
-							users ?? [],
-							organizations ?? [],
-							teams ?? [],
-						);
-						return isAuthorAuthorized && isCommitterAuthorized;
-					},
-				),
+				commits.map(async (commit: Commit) => {
+					const author = commit.author;
+					const committer = commit.committer;
+					const isAuthorAuthorized = await this.isUserInAny(
+						author?.login ?? '',
+						users ?? [],
+						organizations ?? [],
+						teams ?? [],
+					);
+					const isCommitterAuthorized = await this.isUserInAny(
+						committer?.login ?? '',
+						users ?? [],
+						organizations ?? [],
+						teams ?? [],
+					);
+					return isAuthorAuthorized && isCommitterAuthorized;
+				}),
+			);
+
+			this.logger.info(
+				`Evaluated condition only_has_contributors_in: ${JSON.stringify(conditions.only_has_contributors_in)}: ${results.every(Boolean)}`,
 			);
 			return results.every(Boolean);
 		}

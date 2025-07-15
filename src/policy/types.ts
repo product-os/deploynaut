@@ -33,6 +33,11 @@ export interface RuleCondition {
 		organizations?: string[];
 		teams?: string[];
 	};
+	only_has_authors_in?: {
+		users?: string[];
+		organizations?: string[];
+		teams?: string[];
+	};
 }
 
 export interface ApprovalRequirement {

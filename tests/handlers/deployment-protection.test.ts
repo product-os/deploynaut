@@ -12,7 +12,15 @@ const privateKey = fs.readFileSync(
 
 // Load the policy config fixtures
 const authorApprovalFixture = fs.readFileSync(
-	path.join(__dirname, '../fixtures/policy-configs/author-approval.yml'),
+	path.join(__dirname, '../fixtures/policy-configs/only-has-authors-in.yml'),
+	'utf-8',
+);
+
+const contributorConditionsFixture = fs.readFileSync(
+	path.join(
+		__dirname,
+		'../fixtures/policy-configs/only-has-contributors-in.yml',
+	),
 	'utf-8',
 );
 
@@ -125,12 +133,44 @@ describe('Deployment Protection Rule Handler', () => {
 		nock.enableNetConnect();
 	});
 
-	test('approves deployment when commit is authored by certain users', async () => {
-		// Override the beforeEach setup to use author-approval fixture
+	test('approves deployment when commit(s) are authored only by approved users', async () => {
+		// Override the beforeEach setup to use author-conditions fixture
 		nock.cleanAll();
 		nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
 			.reply(200, authorApprovalFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, {
+				sha: 'test-sha',
+				author: { id: 123, login: 'test-bot' },
+				committer: { id: 123, login: 'test-bot' },
+				commit: {
+					verification: { verified: true, reason: 'valid' },
+				},
+			})
+			.post(
+				'/repos/test-org/test-repo/actions/runs/123/deployment_protection_rule',
+			)
+			.reply(200);
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload: testFixtures.deployment_protection_rule,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('approves deployment when commit(s) are authored and committed only by approved users', async () => {
+		// Override the beforeEach setup to use author-approval fixture
+		nock.cleanAll();
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, contributorConditionsFixture)
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } });
 
@@ -709,7 +749,7 @@ describe('Deployment Protection Rule Handler', () => {
 		nock.cleanAll();
 		nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
-			.reply(200, authorApprovalFixture)
+			.reply(200, contributorConditionsFixture)
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } });
 
