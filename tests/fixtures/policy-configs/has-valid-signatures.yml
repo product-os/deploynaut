@@ -1,0 +1,14 @@
+# Signature-based approval policy - only requires valid signatures
+policy:
+  approval:
+    - has valid signatures by test-users
+
+# the list of rules
+approval_rules:
+  - name: has valid signatures by test-users
+    if:
+      # "has_valid_signatures" is satisfied when all relevant commits
+      # all have git commit signatures that have been verified by GitHub
+      has_valid_signatures: true
+    requires:
+      count: 0

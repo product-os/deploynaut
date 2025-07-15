@@ -99,6 +99,7 @@ Each approval rule supports:
 #### Conditions (`if`)
 
 - **`only_has_authors_in`**: Commits authored by authorized users or team members
+- **`has_valid_signatures`**: Commits signed and validated by GitHub
 - **`has_valid_signatures_by`**: Commits signed by authorized users/teams/orgs
 - **`only_has_contributors_in`**: Commits authored and committed by authorized users or team members
 - **`environment`**: Environment-specific conditions

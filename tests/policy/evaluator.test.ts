@@ -1703,7 +1703,21 @@ describe('PolicyEvaluator', () => {
 			};
 		});
 
-		const createSignatureConfig = (): PolicyConfig => ({
+		const hasValidSignaturesPolicy = (): PolicyConfig => ({
+			policy: {
+				approval: ['signature-rule'],
+			},
+			approval_rules: [
+				{
+					name: 'signature-rule',
+					if: {
+						has_valid_signatures: true,
+					},
+				},
+			],
+		});
+
+		const hasSignatureByPolicy = (): PolicyConfig => ({
 			policy: {
 				approval: ['signature-rule'],
 			},
@@ -1748,7 +1762,7 @@ describe('PolicyEvaluator', () => {
 		});
 
 		test('passes when commit is verified and committer is authorized user', async () => {
-			const config = createSignatureConfig();
+			const config = hasSignatureByPolicy();
 			const context = createSignatureContext();
 
 			const evaluator = new PolicyEvaluator(
@@ -1765,7 +1779,7 @@ describe('PolicyEvaluator', () => {
 		});
 
 		test('fails when commit is not GitHub-verified', async () => {
-			const config = createSignatureConfig();
+			const config = hasSignatureByPolicy();
 			const context = createSignatureContext({
 				verification: {
 					verified: false,
@@ -1787,7 +1801,7 @@ describe('PolicyEvaluator', () => {
 		});
 
 		test('fails when committer is not authorized', async () => {
-			const config = createSignatureConfig();
+			const config = hasSignatureByPolicy();
 			const context = createSignatureContext({
 				committer: {
 					id: 456,
@@ -1811,7 +1825,7 @@ describe('PolicyEvaluator', () => {
 		});
 
 		test('fails when committer information is missing', async () => {
-			const config = createSignatureConfig();
+			const config = hasSignatureByPolicy();
 			const context = createSignatureContext({
 				committer: undefined,
 			});
@@ -1826,6 +1840,52 @@ describe('PolicyEvaluator', () => {
 			expect(result).toBe(false);
 			expect(mockLogger.warn).toHaveBeenCalledWith(
 				expect.stringContaining('has no committer information'),
+			);
+		});
+
+		test('passes has_valid_signatures condition if commit(s) are verified by GitHub', async () => {
+			const config = hasValidSignaturesPolicy();
+			const context = createSignatureContext({
+				committer: {
+					id: 888,
+					login: 'external-user',
+				},
+			});
+
+			const evaluator = new PolicyEvaluator(
+				config,
+				mockGithubContext,
+				mockLogger,
+			);
+			const result = await evaluator.evaluate(context);
+
+			expect(result).toBe(true);
+			expect(mockLogger.debug).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'Commit "test-sha" signature verified by GitHub: valid',
+				),
+			);
+		});
+
+		test('fails has_valid_signatures condition if commit(s) are not verified by GitHub', async () => {
+			const config = hasValidSignaturesPolicy();
+			const context = createSignatureContext({
+				verification: {
+					verified: false,
+					reason: 'unsigned',
+				},
+			});
+
+			const evaluator = new PolicyEvaluator(
+				config,
+				mockGithubContext,
+				mockLogger,
+			);
+			const result = await evaluator.evaluate(context);
+
+			expect(result).toBe(false);
+			expect(mockLogger.debug).toHaveBeenCalledWith(
+				expect.stringContaining('signature not verified by GitHub: unsigned'),
 			);
 		});
 

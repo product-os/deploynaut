@@ -23,6 +23,7 @@ export interface RuleCondition {
 		matches?: string[];
 		not_matches?: string[];
 	};
+	has_valid_signatures?: boolean;
 	has_valid_signatures_by?: {
 		users?: string[];
 		organizations?: string[];

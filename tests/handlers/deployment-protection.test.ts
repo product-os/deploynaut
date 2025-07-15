@@ -11,7 +11,7 @@ const privateKey = fs.readFileSync(
 );
 
 // Load the policy config fixtures
-const authorApprovalFixture = fs.readFileSync(
+const authorConditionsFixture = fs.readFileSync(
 	path.join(__dirname, '../fixtures/policy-configs/only-has-authors-in.yml'),
 	'utf-8',
 );
@@ -37,8 +37,16 @@ const deployCommentFixture = fs.readFileSync(
 	'utf-8',
 );
 
-const signatureApprovalFixture = fs.readFileSync(
-	path.join(__dirname, '../fixtures/policy-configs/signature-approval.yml'),
+const hasValidSignaturesFixture = fs.readFileSync(
+	path.join(__dirname, '../fixtures/policy-configs/has-valid-signatures.yml'),
+	'utf-8',
+);
+
+const hasValidSignaturesByFixture = fs.readFileSync(
+	path.join(
+		__dirname,
+		'../fixtures/policy-configs/has-valid-signatures-by.yml',
+	),
 	'utf-8',
 );
 
@@ -138,7 +146,7 @@ describe('Deployment Protection Rule Handler', () => {
 		nock.cleanAll();
 		nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
-			.reply(200, authorApprovalFixture)
+			.reply(200, authorConditionsFixture)
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } });
 
@@ -365,12 +373,53 @@ describe('Deployment Protection Rule Handler', () => {
 		expect(mock.pendingMocks()).toStrictEqual([]);
 	});
 
-	test('approves deployment when commits have valid signatures by test-users team', async () => {
+	test('approves deployment when commit(s) are verified by GitHub', async () => {
 		// Override the beforeEach setup to use signature-approval fixture
 		nock.cleanAll();
 		nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
-			.reply(200, signatureApprovalFixture)
+			.reply(200, hasValidSignaturesFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, {
+				sha: 'test-sha',
+				author: {
+					id: 123,
+					login: 'external-user',
+				},
+				committer: {
+					id: 123,
+					login: 'external-user',
+				},
+				commit: {
+					verification: {
+						verified: true,
+						reason: 'valid',
+					},
+				},
+			})
+			.post(
+				'/repos/test-org/test-repo/actions/runs/123/deployment_protection_rule',
+			)
+			.reply(200);
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload: testFixtures.deployment_protection_rule,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('skips deployment when commit(s) are not verified by GitHub', async () => {
+		// Override the beforeEach setup to use signature-approval fixture
+		nock.cleanAll();
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, hasValidSignaturesFixture)
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } });
 
@@ -381,12 +430,57 @@ describe('Deployment Protection Rule Handler', () => {
 				author: {
 					id: 123,
 					login: 'test-user',
-					organizations: [{ login: 'test-org' }],
+				},
+				committer: {
+					id: 888,
+					login: 'unauthorized-user',
+				},
+				commit: {
+					verification: {
+						verified: false,
+						reason: 'unsigned',
+					},
+				},
+			})
+			.get('/repos/test-org/test-repo/pulls/1/reviews')
+			.reply(200, [])
+			.get('/repos/test-org/test-repo/pulls/1/commits')
+			.reply(200, [
+				{
+					sha: 'test-sha',
+					author: { id: 123, login: 'test-user' },
+					committer: { id: 888, login: 'unauthorized-user' },
+				},
+			]);
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload: testFixtures.deployment_protection_rule,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('approves deployment when commits have valid signatures by test-users team', async () => {
+		// Override the beforeEach setup to use signature-approval fixture
+		nock.cleanAll();
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, hasValidSignaturesByFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, {
+				sha: 'test-sha',
+				author: {
+					id: 123,
+					login: 'test-user',
 				},
 				committer: {
 					id: 123,
 					login: 'test-user',
-					organizations: [{ login: 'test-org' }],
 				},
 				commit: {
 					verification: {
@@ -405,6 +499,59 @@ describe('Deployment Protection Rule Handler', () => {
 				'/repos/test-org/test-repo/actions/runs/123/deployment_protection_rule',
 			)
 			.reply(200);
+
+		await probot.receive({
+			name: 'deployment_protection_rule',
+			payload: testFixtures.deployment_protection_rule,
+		});
+
+		expect(mock.pendingMocks()).toStrictEqual([]);
+	});
+
+	test('skips deployment when commits do not have valid signatures by test-users team', async () => {
+		// Override the beforeEach setup to use signature-approval fixture
+		nock.cleanAll();
+		nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
+			.reply(200, hasValidSignaturesByFixture)
+			.post('/app/installations/12345678/access_tokens')
+			.reply(200, { token: 'test', permissions: { issues: 'write' } });
+
+		const mock = nock('https://api.github.com')
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, {
+				sha: 'test-sha',
+				author: {
+					id: 123,
+					login: 'test-user',
+				},
+				committer: {
+					id: 888,
+					login: 'unauthorized-user',
+				},
+				commit: {
+					verification: {
+						verified: true,
+						reason: 'valid',
+					},
+				},
+			})
+			.get('/orgs/test-org/teams/test-users/members')
+			.reply(200, [
+				{
+					login: 'test-user',
+				},
+			])
+			.get('/repos/test-org/test-repo/pulls/1/reviews')
+			.reply(200, [])
+			.get('/repos/test-org/test-repo/pulls/1/commits')
+			.reply(200, [
+				{
+					sha: 'test-sha',
+					author: { id: 123, login: 'test-user' },
+					committer: { id: 888, login: 'unauthorized-user' },
+				},
+			]);
 
 		await probot.receive({
 			name: 'deployment_protection_rule',
@@ -839,7 +986,7 @@ describe('Deployment Protection Rule Handler', () => {
 		nock.cleanAll();
 		nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/contents/.github%2Fdeploynaut.yml')
-			.reply(200, authorApprovalFixture)
+			.reply(200, authorConditionsFixture)
 			.post('/app/installations/12345678/access_tokens')
 			.reply(200, { token: 'test', permissions: { issues: 'write' } });
 
