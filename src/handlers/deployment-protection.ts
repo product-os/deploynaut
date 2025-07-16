@@ -89,8 +89,8 @@ export async function handleDeploymentProtectionRuleRequested(
 		try {
 			await context.octokit.request(`POST ${callbackUrl}`, {
 				environment_name: environment,
-				state: 'approved',
-				comment: `Approved by policy`,
+				state: 'rejected',
+				comment: `Rejected by policy`,
 			});
 		} catch (error: any) {
 			if (error.status === 422) {
@@ -167,5 +167,22 @@ export async function handleDeploymentProtectionRuleRequested(
 				return; // early return if the deployment is approved by the PR reviews rules
 			}
 		}
+	}
+
+	context.log.info(`Deployment ${deployment.id} rejected by policy`);
+	try {
+		await context.octokit.request(`POST ${callbackUrl}`, {
+			environment_name: environment,
+			state: 'rejected',
+			comment: `Rejected by policy`,
+		});
+	} catch (error: any) {
+		if (error.status === 422) {
+			context.log.warn(
+				'Deployment already rejected, skipping duplicate approval',
+			);
+			return;
+		}
+		throw error;
 	}
 }
