@@ -1,4 +1,25 @@
 - commits:
+    - subject: "Fix: Lookup missing verification properties on PR commit list"
+      hash: c96b03aeb612e01387e737ab430b066fe38e3769
+      body: |
+        This was working for deployment protection events because
+        only the tip of the branch was considered for approval.
+
+        But the logs showed that when evaluating all of the commits
+        on a PR, the verification properties were undefined.
+
+        This is due to the different schema returned by the listCommits
+        endpoint vs the getCommit endpoint we had not accounted for.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Kyle Harding <kyle@balena.io>
+        signed-off-by: Kyle Harding <kyle@balena.io>
+      author: Kyle Harding
+  version: 0.4.1
+  title: ""
+  date: 2025-10-16T19:26:23.865Z
+- commits:
     - subject: Add has_valid_signatures condition
       hash: 8843f6f163d59ebcdb4b2c85cd1f3c4db0216358
       body: |
