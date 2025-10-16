@@ -216,6 +216,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: { id: 123, login: 'unauthorized-user' },
@@ -240,6 +241,10 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					sha: 'test-sha',
 					author: { id: 123, login: 'unauthorized-user' },
+					committer: { id: 123, login: 'unauthorized-user' },
+					commit: {
+						verification: { verified: false, reason: 'unsigned' },
+					},
 				},
 			])
 			.get('/orgs/test-org/teams/test-maintainers/members')
@@ -272,6 +277,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: { id: 123, login: 'unauthorized-user' },
@@ -296,6 +302,10 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					sha: 'test-sha',
 					author: { id: 123, login: 'unauthorized-user' },
+					committer: { id: 123, login: 'unauthorized-user' },
+					commit: {
+						verification: { verified: false, reason: 'unsigned' },
+					},
 				},
 			])
 			.get('/orgs/test-org/teams/test-maintainers/members')
@@ -328,6 +338,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: { id: 123, login: 'unauthorized-user' },
@@ -352,6 +363,10 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					sha: 'test-sha',
 					author: { id: 123, login: 'unauthorized-user' },
+					committer: { id: 123, login: 'unauthorized-user' },
+					commit: {
+						verification: { verified: false, reason: 'unsigned' },
+					},
 				},
 			])
 			.get('/orgs/test-org/members')
@@ -425,6 +440,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: {
@@ -448,8 +464,20 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, [
 				{
 					sha: 'test-sha',
-					author: { id: 123, login: 'test-user' },
-					committer: { id: 888, login: 'unauthorized-user' },
+					author: {
+						id: 123,
+						login: 'test-user',
+					},
+					committer: {
+						id: 888,
+						login: 'unauthorized-user',
+					},
+					commit: {
+						verification: {
+							verified: false,
+							reason: 'unsigned',
+						},
+					},
 				},
 			]);
 
@@ -519,6 +547,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: {
@@ -548,8 +577,20 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, [
 				{
 					sha: 'test-sha',
-					author: { id: 123, login: 'test-user' },
-					committer: { id: 888, login: 'unauthorized-user' },
+					author: {
+						id: 123,
+						login: 'test-user',
+					},
+					committer: {
+						id: 888,
+						login: 'unauthorized-user',
+					},
+					commit: {
+						verification: {
+							verified: true,
+							reason: 'valid',
+						},
+					},
 				},
 			]);
 
@@ -572,6 +613,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: { id: 123, login: 'unauthorized-user' },
@@ -587,6 +629,10 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					sha: 'test-sha',
 					author: { id: 123, login: 'unauthorized-user' },
+					committer: { id: 123, login: 'unauthorized-user' },
+					commit: {
+						verification: { verified: false, reason: 'unsigned' },
+					},
 				},
 			]);
 
@@ -652,6 +698,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: { id: 123, login: 'unauthorized-user' },
@@ -676,6 +723,10 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					sha: 'test-sha',
 					author: { id: 123, login: 'unauthorized-user' },
+					committer: { id: 123, login: 'unauthorized-user' },
+					commit: {
+						verification: { verified: false, reason: 'unsigned' },
+					},
 				},
 			])
 			.get('/orgs/test-org/teams/test-maintainers/members')
@@ -736,6 +787,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: null,
@@ -751,7 +803,11 @@ describe('Deployment Protection Rule Handler', () => {
 			.reply(200, [
 				{
 					sha: 'test-sha',
-					author: { id: 123, login: 'test-user' },
+					author: null,
+					committer: { id: 123, login: 'test-user' },
+					commit: {
+						verification: { verified: false, reason: 'unsigned' },
+					},
 				},
 			]);
 
@@ -773,6 +829,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: { id: 123, login: 'test-user' },
@@ -788,6 +845,10 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					sha: 'test-sha',
 					author: { id: 123, login: 'test-user' },
+					committer: null,
+					commit: {
+						verification: { verified: false, reason: 'unsigned' },
+					},
 				},
 			]);
 
@@ -809,6 +870,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: { id: 123, login: 'test-user' },
@@ -824,6 +886,10 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					sha: 'test-sha',
 					author: { id: 123, login: 'test-user' },
+					committer: { id: 123, login: 'test-user' },
+					commit: {
+						verification: null,
+					},
 				},
 			]);
 
@@ -845,9 +911,10 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
-				author: { id: 123, login: 'test-user' },
+				author: null,
 				committer: { id: 123, login: 'test-user' },
 				commit: {
 					verification: { verified: false, reason: 'unsigned' },
@@ -860,6 +927,10 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					sha: 'test-sha',
 					author: null,
+					committer: { id: 123, login: 'test-user' },
+					commit: {
+						verification: { verified: false, reason: 'unsigned' },
+					},
 				},
 			]);
 
@@ -935,6 +1006,7 @@ describe('Deployment Protection Rule Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/commits/test-sha')
+			.times(2)
 			.reply(200, {
 				sha: 'test-sha',
 				author: { id: 123, login: 'unauthorized-user' },
@@ -959,6 +1031,10 @@ describe('Deployment Protection Rule Handler', () => {
 				{
 					sha: 'test-sha',
 					author: { id: 123, login: 'unauthorized-user' },
+					committer: { id: 123, login: 'unauthorized-user' },
+					commit: {
+						verification: { verified: false, reason: 'unsigned' },
+					},
 				},
 			])
 			.get('/orgs/test-org/teams/test-maintainers/members')
