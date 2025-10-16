@@ -16,9 +16,8 @@ export async function handlePullRequestReviewSubmitted(
 ) {
 	const { review, pull_request } = context.payload;
 
-	// // Get all commits for this PR
+	// Get all commits for this PR
 	const commits = await listPullRequestCommits(context, pull_request.number);
-	// // const commits = [(await getCommit(context, pull_request.head.sha))];
 
 	// Gather all the context data we need
 	const approvalContext: PolicyContext = {

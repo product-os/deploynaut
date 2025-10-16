@@ -19,6 +19,7 @@ interface WorkflowRun {
 }
 
 interface Commit {
+	sha: string;
 	author: { id: number; login: string } | null;
 	committer: { id: number; login: string } | null;
 	commit?: {
@@ -53,6 +54,7 @@ interface PullRequestReview {
 		base: {
 			sha: string;
 		};
+		commits: Commit[];
 	};
 	repository: {
 		owner: {
@@ -96,6 +98,19 @@ const testFixtures: TestFixtures = {
 			base: {
 				sha: 'base-sha',
 			},
+			commits: [
+				{
+					sha: 'test-sha',
+					author: { id: 123, login: 'test-user' },
+					committer: { id: 123, login: 'test-user' },
+					commit: {
+						verification: {
+							verified: true,
+							reason: 'valid-signature',
+						},
+					},
+				},
+			],
 		},
 		repository: {
 			owner: {
@@ -113,6 +128,7 @@ const testFixtures: TestFixtures = {
 		).toISOString(),
 	},
 	commit: {
+		sha: 'test-sha',
 		author: { id: 123, login: 'test-user' },
 		committer: { id: 123, login: 'test-user' },
 		commit: {
@@ -197,6 +213,8 @@ describe('Pull Request Review Handler', () => {
 			})
 			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.reply(200, [
 				{
@@ -228,6 +246,8 @@ describe('Pull Request Review Handler', () => {
 			})
 			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.reply(200, [
 				{
@@ -278,6 +298,8 @@ describe('Pull Request Review Handler', () => {
 			.reply(200)
 			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
 			.get('/orgs/test-org/members')
 			.times(2)
 			.reply(200, [
@@ -331,6 +353,8 @@ describe('Pull Request Review Handler', () => {
 			.reply(200)
 			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.times(2)
 			.reply(200, [
@@ -384,6 +408,8 @@ describe('Pull Request Review Handler', () => {
 			.reply(200)
 			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.times(2)
 			.reply(200, [
@@ -419,7 +445,9 @@ describe('Pull Request Review Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [testFixtures.commit]);
+			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit);
 
 		const payload = {
 			...testFixtures.pull_request_review,
@@ -447,7 +475,9 @@ describe('Pull Request Review Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [testFixtures.commit]);
+			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit);
 
 		const payload = {
 			...testFixtures.pull_request_review,
@@ -476,7 +506,9 @@ describe('Pull Request Review Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [testFixtures.commit]);
+			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit);
 
 		const payload = {
 			...testFixtures.pull_request_review,
@@ -507,7 +539,9 @@ describe('Pull Request Review Handler', () => {
 
 		const mock = nock('https://api.github.com')
 			.get('/repos/test-org/test-repo/pulls/123/commits')
-			.reply(200, [testFixtures.commit]);
+			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit);
 
 		const payload = {
 			...testFixtures.pull_request_review,
@@ -549,6 +583,8 @@ describe('Pull Request Review Handler', () => {
 			})
 			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.reply(200, [
 				{
@@ -582,6 +618,8 @@ describe('Pull Request Review Handler', () => {
 			.reply(200, [])
 			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.reply(200, [
 				{
@@ -617,6 +655,8 @@ describe('Pull Request Review Handler', () => {
 			])
 			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, testFixtures.commit)
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.reply(200, [
 				{
@@ -646,6 +686,13 @@ describe('Pull Request Review Handler', () => {
 				workflow_runs: [testFixtures.workflow_run],
 			})
 			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [
+				{
+					...testFixtures.commit,
+					author: null,
+				},
+			])
+			.get('/repos/test-org/test-repo/commits/test-sha')
 			.reply(200, [
 				{
 					...testFixtures.commit,
@@ -689,6 +736,13 @@ describe('Pull Request Review Handler', () => {
 					committer: null,
 				},
 			])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, [
+				{
+					...testFixtures.commit,
+					committer: null,
+				},
+			])
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.reply(200, [
 				{
@@ -720,6 +774,16 @@ describe('Pull Request Review Handler', () => {
 				workflow_runs: [testFixtures.workflow_run],
 			})
 			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [
+				{
+					...testFixtures.commit,
+					commit: {
+						...testFixtures.commit.commit,
+						verification: null,
+					},
+				},
+			])
+			.get('/repos/test-org/test-repo/commits/test-sha')
 			.reply(200, [
 				{
 					...testFixtures.commit,
@@ -776,6 +840,8 @@ describe('Pull Request Review Handler', () => {
 			})
 			.get('/repos/test-org/test-repo/pulls/123/commits')
 			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
+			.reply(200, [testFixtures.commit])
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.times(2)
 			.reply(200, [
@@ -829,6 +895,8 @@ describe('Pull Request Review Handler', () => {
 				message: 'Internal server error',
 			})
 			.get('/repos/test-org/test-repo/pulls/123/commits')
+			.reply(200, [testFixtures.commit])
+			.get('/repos/test-org/test-repo/commits/test-sha')
 			.reply(200, [testFixtures.commit])
 			.get('/orgs/test-org/teams/test-maintainers/members')
 			.times(2)

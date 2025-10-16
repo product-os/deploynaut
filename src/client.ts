@@ -83,6 +83,14 @@ export async function listPullRequestCommits(
 	});
 	const { data: commits } =
 		await context.octokit.rest.pulls.listCommits(request);
+
+	// For each commit we need to fetch the full commit to get all missing properties
+	// and discard the partial commit object returned by the listCommits endpoint
+	const fullCommits = [];
+	for (const commit of commits) {
+		const fullCommit = await getCommit(context, commit.sha);
+		fullCommits.push(fullCommit);
+	}
 	return commits;
 }
 

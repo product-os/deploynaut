@@ -138,6 +138,18 @@ export async function handleDeploymentProtectionRuleRequested(
 								login: prCommit.author.login,
 							}
 						: undefined,
+					committer: prCommit.committer
+						? {
+								id: prCommit.committer.id,
+								login: prCommit.committer.login,
+							}
+						: undefined,
+					verification: prCommit.commit.verification
+						? {
+								verified: prCommit.commit.verification.verified,
+								reason: prCommit.commit.verification.reason,
+							}
+						: undefined,
 				})),
 			};
 
