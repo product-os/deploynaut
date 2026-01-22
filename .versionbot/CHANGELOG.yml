@@ -1,4 +1,16 @@
 - commits:
+    - subject: Lock file maintenance
+      hash: d762b8bec9df1b924dac2cd4a977fc18ccb50fee
+      body: |
+        Update 
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: balena-renovate[bot]
+  version: 0.4.2
+  title: ""
+  date: 2026-01-22T21:22:39.142Z
+- commits:
     - subject: "Fix: Lookup missing verification properties on PR commit list"
       hash: c96b03aeb612e01387e737ab430b066fe38e3769
       body: |
