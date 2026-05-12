@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "probot": "^13.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^6.0.0"
   },
   "devDependencies": {
     "@balena/lint": "^9.1.2",
