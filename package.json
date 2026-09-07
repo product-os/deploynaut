@@ -23,7 +23,7 @@
     "prepare": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module"
   },
   "dependencies": {
-    "probot": "^13.0.1",
+    "probot": "^14.0.0",
     "typescript": "^5.6.3"
   },
   "devDependencies": {
