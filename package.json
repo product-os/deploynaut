@@ -32,7 +32,7 @@
     "@vitest/coverage-v8": "3.2.7",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
-    "nock": "14.0.10",
+    "nock": "14.0.17",
     "rimraf": "6.1.2",
     "smee-client": "4.4.3",
     "vitest": "^3.0.0"
