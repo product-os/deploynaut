@@ -1,4 +1,15 @@
 - commits:
+    - subject: Specify `npm >= 11` to avoid CI issues with npm 10
+      hash: 8b8204c717c6dba4bb4ade7e5f54400348675ff1
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Pagan Gazzard
+  version: 0.4.4
+  title: ""
+  date: 2026-10-19T02:14:09.048Z
+- commits:
     - subject: Update dependency flowzonify to v0.4.19
       hash: 453f941088f7f7deb03c332fae43b3e367a7b336
       body: |
