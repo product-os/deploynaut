@@ -20,7 +20,8 @@ approval_rules:
     methods:
       github_review: true
       github_review_comment_patterns:
-        - '/deploy'
+        # A /deploy command at the start of a line of the review
+        - '/^\/deploy\b/im'
 
   - name: has valid signatures by security-team or reliability
     if:

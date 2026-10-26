@@ -47,7 +47,6 @@ The app uses YAML configuration files that define approval rules and requirement
 
 - **Commit SHA Verification**: Uses commit SHA as source of truth for approvals
 - **Actor Separation**: Prevents self-approval (different commit author and reviewer required)
-- **Comment Integrity**: Validates comments haven't been modified since creation
 - **Stateless Operations**: No persistent state between requests to prevent TOCTOU attacks
 
 ## Configuration
@@ -73,7 +72,7 @@ approval_rules:
       teams: ['org/team-name']
     methods:
       github_review: true
-      github_review_comment_patterns: ['^/deploy']
+      github_review_comment_patterns: ['/^\/deploy\b/im']
 
   - name: has-valid-signatures
     if:
@@ -114,7 +113,9 @@ Each approval rule supports:
 #### Methods (`methods`)
 
 - **`github_review`**: Accept GitHub PR reviews
-- **`github_review_comment_patterns`**: Accept comments matching regex patterns
+- **`github_review_comment_patterns`**: Accept review comments matching any of the patterns. A pattern wrapped in slashes, with optional flags (eg. `'/^\/deploy\b/im'`), is a regular expression. Any other pattern matches that text anywhere in the comment, ignoring case, so `'/deploy'` also matches "don't /deploy yet".
+
+Review comments are read when a deployment is evaluated, so a comment that was edited after it was submitted is evaluated as edited.
 
 ### Configuration Hierarchy
 

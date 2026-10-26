@@ -15,5 +15,4 @@ approval_rules:
     methods:
       github_review: true
       github_review_comment_patterns:
-        - '/deploy'
-        - '/^\/deploy/'
+        - '/^\/deploy\b/im'

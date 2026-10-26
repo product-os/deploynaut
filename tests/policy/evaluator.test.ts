@@ -818,6 +818,60 @@ describe('PolicyEvaluator', () => {
 		expect(await evaluator.evaluate(context)).toBe(true);
 	});
 
+	test.each([
+		['/deploy', true],
+		['LGTM\n/Deploy now', true],
+		["please don't /deploy yet", false],
+		['/deployment looks wrong', false],
+	])(
+		'matches review comment %j against an anchored /deploy pattern: %s',
+		async (body, expected) => {
+			const config: PolicyConfig = {
+				...baseConfig,
+				policy: {
+					approval: ['comment-rule'],
+				},
+				approval_rules: [
+					{
+						name: 'comment-rule',
+						requires: {
+							count: 1,
+							users: ['test-reviewer'],
+						},
+						methods: {
+							github_review_comment_patterns: ['/^\\/deploy\\b/im'],
+						},
+					},
+				],
+			};
+
+			const context: PolicyContext = {
+				...baseContext,
+				reviews: [
+					{
+						id: 4,
+						user: {
+							id: 789,
+							login: 'test-reviewer',
+						},
+						state: 'COMMENTED',
+						body,
+						commit_id: 'test-sha',
+						submitted_at: '2021-01-01T00:00:00Z',
+					},
+				],
+				commits: [],
+			};
+
+			const evaluator = new PolicyEvaluator(
+				config,
+				mockGithubContext,
+				mockGithubContext.log,
+			);
+			expect(await evaluator.evaluate(context)).toBe(expected);
+		},
+	);
+
 	test('handles invalid regex patterns', async () => {
 		const config: PolicyConfig = {
 			...baseConfig,
