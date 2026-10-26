@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { PolicyEvaluator } from '../../src/policy/evaluator.js';
-import type { PolicyConfig, PolicyContext } from '../../src/policy/types.js';
-import * as client from '../../src/client.js';
+import { PolicyEvaluator } from '../../src/policy/evaluator.ts';
+import type { PolicyConfig, PolicyContext } from '../../src/policy/types.ts';
+import * as client from '../../src/client.ts';
 
 describe('PolicyEvaluator', () => {
 	const baseConfig: PolicyConfig = {
@@ -33,7 +33,7 @@ describe('PolicyEvaluator', () => {
 	} as any;
 
 	// Mock client functions
-	vi.mock('../../src/client.js', () => ({
+	vi.mock('../../src/client.ts', () => ({
 		listTeamMembers: vi.fn(),
 		listOrganizationMembers: vi.fn(),
 	}));

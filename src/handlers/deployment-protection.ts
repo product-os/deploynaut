@@ -1,11 +1,11 @@
 import type { Context } from 'probot';
-import { PolicyEvaluator } from '../policy/evaluator.js';
-import type { PolicyContext, PolicyConfig } from '../policy/types.js';
+import { PolicyEvaluator } from '../policy/evaluator.ts';
+import type { PolicyContext, PolicyConfig } from '../policy/types.ts';
 import {
 	getCommit,
 	listPullRequestReviews,
 	listPullRequestCommits,
-} from '../client.js';
+} from '../client.ts';
 
 export async function handleDeploymentProtectionRuleRequested(
 	context: Context<'deployment_protection_rule.requested'>,

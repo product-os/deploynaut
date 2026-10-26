@@ -1,5 +1,5 @@
 import nock from 'nock';
-import myProbotApp from '../src/index.js';
+import myProbotApp from '../src/index.ts';
 import { Probot, ProbotOctokit } from 'probot';
 import fs from 'fs';
 import path from 'path';

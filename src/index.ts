@@ -4,9 +4,9 @@ import type {
 	DeploymentProtectionRuleRequestedEvent,
 	PullRequestReviewSubmittedEvent,
 } from '@octokit/webhooks-types';
-import { handleDeploymentProtectionRuleRequested } from './handlers/deployment-protection.js';
-import { handlePullRequestReviewSubmitted } from './handlers/pull-request-review.js';
-import type { PolicyConfig } from './policy/types.js';
+import { handleDeploymentProtectionRuleRequested } from './handlers/deployment-protection.ts';
+import { handlePullRequestReviewSubmitted } from './handlers/pull-request-review.ts';
+import type { PolicyConfig } from './policy/types.ts';
 
 const DEFAULT_CONFIG: PolicyConfig = {
 	policy: {

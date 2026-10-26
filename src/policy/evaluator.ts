@@ -7,9 +7,9 @@ import type {
 	RuleCondition,
 	ApprovalRequirement,
 	ApprovalMethods,
-} from './types.js';
-import { listTeamMembers, listOrganizationMembers } from '../client.js';
-import type { Commit } from './types.js';
+} from './types.ts';
+import { listTeamMembers, listOrganizationMembers } from '../client.ts';
+import type { Commit } from './types.ts';
 
 /**
  * Logger interface for outputting evaluation messages
