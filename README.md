@@ -129,6 +129,8 @@ The policy configuration schema is based on a subset of the configuration used b
 
 ## Setup
 
+The TypeScript sources are run directly using [Node.js type stripping](https://nodejs.org/api/typescript.html#type-stripping), without a build step, which requires Node.js 22.18.0 or later. Only erasable TypeScript syntax can be used, which `npm run lint` checks.
+
 ```sh
 # Install dependencies
 npm install

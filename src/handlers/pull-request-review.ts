@@ -1,13 +1,13 @@
 import type { Context } from 'probot';
-import { PolicyEvaluator } from '../policy/evaluator.js';
-import type { PolicyContext, PolicyConfig } from '../policy/types.js';
+import { PolicyEvaluator } from '../policy/evaluator.ts';
+import type { PolicyContext, PolicyConfig } from '../policy/types.ts';
 import {
 	listPullRequestCommits,
 	listPendingDeployments,
 	listWorkflowRuns,
 	reviewWorkflowRun,
 	getCommit,
-} from '../client.js';
+} from '../client.ts';
 import type { WorkflowRun } from '@octokit/webhooks-types';
 
 export async function handlePullRequestReviewSubmitted(

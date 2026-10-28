@@ -3,7 +3,7 @@ import { Probot, ProbotOctokit } from 'probot';
 import fs from 'fs';
 import path from 'path';
 import { describe, beforeEach, afterEach, test, expect } from 'vitest';
-import myProbotApp from '../../src/index.js';
+import myProbotApp from '../../src/index.ts';
 
 const privateKey = fs.readFileSync(
 	path.join(__dirname, '../fixtures/mock-cert.pem'),
